@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Claude Bench",
+  "version": "0.1.0",
+  "identifier": "com.claudebench.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build && cd sidecar && npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Claude Bench",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../sidecar/dist/index.js": "sidecar/index.js"
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "entitlements": null,
+      "exceptionDomain": null,
+      "signingIdentity": null
+    },
+    "category": "DeveloperTool",
+    "shortDescription": "AI-powered task automation workbench",
+    "longDescription": "ClaudeBench is a native macOS app for AI-powered task automation including code review, research, file organization, and more."
+  }
+}

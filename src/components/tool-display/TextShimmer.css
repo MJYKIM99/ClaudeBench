@@ -1,0 +1,145 @@
+.text-shimmer {
+  display: inline-block;
+  background: linear-gradient(
+    90deg,
+    var(--color-primary) 0%,
+    var(--color-secondary) 25%,
+    var(--color-primary) 50%,
+    var(--color-secondary) 75%,
+    var(--color-primary) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+/* Running progress bar */
+.running-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-secondary) 30%,
+    var(--color-primary) 50%,
+    var(--color-secondary) 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: progress-shimmer 1.8s ease-in-out infinite;
+  border-radius: 1px;
+}
+
+@keyframes progress-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+/* Glow effect for running state */
+.running-glow {
+  box-shadow: var(--shadow-glow);
+  border-color: var(--color-primary) !important;
+  transition: box-shadow var(--transition-slow), border-color var(--transition-normal);
+}
+
+/* Typing indicator dots */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  animation: typingBounce 1.4s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+/* Streaming text effect */
+.streaming-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background: var(--color-primary);
+  margin-left: 2px;
+  animation: cursorBlink 1s ease-in-out infinite;
+  vertical-align: text-bottom;
+}
+
+@keyframes cursorBlink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+/* Tool execution wave */
+.execution-wave {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-primary-light) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: wavePass 2s ease-in-out infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+@keyframes wavePass {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

@@ -1,0 +1,126 @@
+import { useAppStore } from '../store/useAppStore';
+import type { SessionView } from '../types';
+import './Sidebar.css';
+
+interface SidebarProps {
+  onNewSession: () => void;
+  onDeleteSession: (sessionId: string) => void;
+  onOpenSettings: () => void;
+}
+
+function getStatusColor(status: SessionView['status']): string {
+  switch (status) {
+    case 'running':
+      return '#f59e0b';
+    case 'completed':
+      return '#22c55e';
+    case 'error':
+      return '#ef4444';
+    default:
+      return '#94a3b8';
+  }
+}
+
+function formatTime(timestamp?: number): string {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  return date.toLocaleDateString();
+}
+
+export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings }: SidebarProps) {
+  const sessions = useAppStore((s) => s.sessions);
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const setActiveSessionId = useAppStore((s) => s.setActiveSessionId);
+
+  const sessionList = Object.values(sessions).sort(
+    (a, b) => (b.updatedAt ?? b.createdAt ?? 0) - (a.updatedAt ?? a.createdAt ?? 0)
+  );
+
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-header">
+        <div className="sidebar-brand">
+          <img src="/icon-64.png" alt="ClaudeBench" className="sidebar-logo" />
+          <h1 className="sidebar-title">ClaudeBench</h1>
+        </div>
+        <button className="new-session-btn" onClick={onNewSession}>
+          + New Session
+        </button>
+      </div>
+
+      <nav className="sidebar-nav">
+        <div className="nav-section">
+          <h2 className="nav-section-title">SESSIONS</h2>
+          {sessionList.length === 0 ? (
+            <div className="empty-state">
+              No sessions yet
+            </div>
+          ) : (
+            <ul className="session-list">
+              {sessionList.map((session) => (
+                <li key={session.id}>
+                  <div
+                    className={`session-item ${activeSessionId === session.id ? 'active' : ''}`}
+                    onClick={() => setActiveSessionId(session.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        setActiveSessionId(session.id);
+                      }
+                    }}
+                  >
+                    <div className="session-status">
+                      <span
+                        className="status-indicator"
+                        style={{ background: getStatusColor(session.status) }}
+                      />
+                    </div>
+                    <div className="session-info">
+                      <span className="session-title">
+                        {session.title || 'Untitled'}
+                      </span>
+                      <span className="session-meta">
+                        {session.cwd && (
+                          <span className="session-cwd" title={session.cwd}>
+                            {session.cwd.split('/').pop()}
+                          </span>
+                        )}
+                        <span className="session-time">
+                          {formatTime(session.updatedAt ?? session.createdAt)}
+                        </span>
+                      </span>
+                    </div>
+                    <button
+                      className="session-delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteSession(session.id);
+                      }}
+                      title="Delete session"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </nav>
+
+      <div className="sidebar-footer">
+        <button className="settings-btn" onClick={onOpenSettings}>
+          ⚙ Settings
+        </button>
+        <span className="version">v0.1.0</span>
+      </div>
+    </aside>
+  );
+}
