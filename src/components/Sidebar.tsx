@@ -1,4 +1,6 @@
+import { useState, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
+import { revealInFinder } from '../utils/pathUtils';
 import type { SessionView } from '../types';
 import './Sidebar.css';
 
@@ -6,6 +8,14 @@ interface SidebarProps {
   onNewSession: () => void;
   onDeleteSession: (sessionId: string) => void;
   onOpenSettings: () => void;
+}
+
+interface ContextMenuState {
+  visible: boolean;
+  x: number;
+  y: number;
+  sessionId: string | null;
+  sessionCwd: string | null;
 }
 
 function getStatusColor(status: SessionView['status']): string {
@@ -37,13 +47,49 @@ export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings }: Sideb
   const sessions = useAppStore((s) => s.sessions);
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const setActiveSessionId = useAppStore((s) => s.setActiveSessionId);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    sessionId: null,
+    sessionCwd: null,
+  });
 
   const sessionList = Object.values(sessions).sort(
     (a, b) => (b.updatedAt ?? b.createdAt ?? 0) - (a.updatedAt ?? a.createdAt ?? 0)
   );
 
+  const handleContextMenu = useCallback((e: React.MouseEvent, session: SessionView) => {
+    e.preventDefault();
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      sessionId: session.id,
+      sessionCwd: session.cwd || null,
+    });
+  }, []);
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu((prev) => ({ ...prev, visible: false }));
+  }, []);
+
+  const handleOpenInFinder = useCallback(() => {
+    if (contextMenu.sessionCwd) {
+      revealInFinder(contextMenu.sessionCwd);
+    }
+    closeContextMenu();
+  }, [contextMenu.sessionCwd, closeContextMenu]);
+
+  const handleDeleteFromMenu = useCallback(() => {
+    if (contextMenu.sessionId) {
+      onDeleteSession(contextMenu.sessionId);
+    }
+    closeContextMenu();
+  }, [contextMenu.sessionId, onDeleteSession, closeContextMenu]);
+
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" onClick={closeContextMenu}>
       <div className="sidebar-header">
         <div className="sidebar-brand">
           <img src="/icon-64.png" alt="ClaudeBench" className="sidebar-logo" />
@@ -68,6 +114,7 @@ export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings }: Sideb
                   <div
                     className={`session-item ${activeSessionId === session.id ? 'active' : ''}`}
                     onClick={() => setActiveSessionId(session.id)}
+                    onContextMenu={(e) => handleContextMenu(e, session)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
@@ -97,16 +144,6 @@ export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings }: Sideb
                         </span>
                       </span>
                     </div>
-                    <button
-                      className="session-delete"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteSession(session.id);
-                      }}
-                      title="Delete session"
-                    >
-                      ×
-                    </button>
                   </div>
                 </li>
               ))}
@@ -121,6 +158,26 @@ export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings }: Sideb
         </button>
         <span className="version">v0.1.0</span>
       </div>
+
+      {/* Context Menu */}
+      {contextMenu.visible && (
+        <div
+          className="context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {contextMenu.sessionCwd && (
+            <button className="context-menu-item" onClick={handleOpenInFinder}>
+              <span className="context-menu-icon">📁</span>
+              Open in Finder
+            </button>
+          )}
+          <button className="context-menu-item danger" onClick={handleDeleteFromMenu}>
+            <span className="context-menu-icon">🗑</span>
+            Delete Session
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

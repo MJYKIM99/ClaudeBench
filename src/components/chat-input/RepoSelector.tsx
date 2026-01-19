@@ -16,6 +16,20 @@ export function RepoSelector() {
 
   const cwd = useAppStore((s) => s.cwd);
   const setCwd = useAppStore((s) => s.setCwd);
+  const showCwdPrompt = useAppStore((s) => s.showCwdPrompt);
+  const setShowCwdPrompt = useAppStore((s) => s.setShowCwdPrompt);
+
+  // 当 showCwdPrompt 为 true 时，自动展开下拉菜单
+  useEffect(() => {
+    if (showCwdPrompt) {
+      setIsOpen(true);
+      // 3 秒后自动关闭提示（但保持下拉菜单打开）
+      const timer = setTimeout(() => {
+        setShowCwdPrompt(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showCwdPrompt, setShowCwdPrompt]);
 
   // Load recent repos from localStorage
   useEffect(() => {
@@ -95,6 +109,12 @@ export function RepoSelector() {
 
       {isOpen && (
         <div className="repo-selector-dropdown">
+          {/* 气泡提示 */}
+          {showCwdPrompt && (
+            <div className="repo-prompt-bubble">
+              Please select a working directory before sending messages
+            </div>
+          )}
           <div className="repo-search">
             <svg className="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="6" cy="6" r="4" />

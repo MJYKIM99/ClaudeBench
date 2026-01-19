@@ -1,13 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import type { PermissionMode } from '../types';
 import './SettingsPanel.css';
-
-interface SkillInfo {
-  name: string;
-  description?: string;
-  path?: string;
-}
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -27,34 +21,22 @@ function AppIcon({ size = 48 }: { size?: number }) {
 }
 
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
-  const [skills, setSkills] = useState<SkillInfo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const skills = useAppStore((s) => s.skills);
+  const skillsLoading = useAppStore((s) => s.skillsLoading);
+  const setSkillsLoading = useAppStore((s) => s.setSkillsLoading);
   const claudeSettings = useAppStore((s) => s.claudeSettings);
   const permissionSettings = useAppStore((s) => s.permissionSettings);
+
+  const loadSkills = () => {
+    setSkillsLoading(true);
+    window.sidecarSend?.({ type: 'skills.list', payload: {} });
+  };
 
   useEffect(() => {
     loadSkills();
     // Request permission settings on mount
     window.sidecarSend?.({ type: 'settings.get' });
   }, []);
-
-  const loadSkills = async () => {
-    setLoading(true);
-    try {
-      const mockSkills: SkillInfo[] = [
-        { name: 'content-creator', description: '自媒体视频脚本和文案创作助手' },
-        { name: 'doc-coauthoring', description: 'Guide users through structured documentation workflow' },
-        { name: 'subtitle-proofreader', description: '双语字幕校对助手' },
-        { name: 'skill-creator', description: 'Guide for creating effective skills' },
-        { name: 'frontend-design', description: 'Create distinctive, production-grade frontend interfaces' },
-      ];
-      setSkills(mockSkills);
-    } catch (error) {
-      console.error('Failed to load skills:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="settings-panel">
@@ -177,12 +159,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         <section className="settings-section">
           <div className="section-header">
             <h3>Skills</h3>
-            <button className="refresh-btn" onClick={loadSkills} disabled={loading}>
-              {loading ? '...' : '↻'}
+            <button className="refresh-btn" onClick={loadSkills} disabled={skillsLoading}>
+              {skillsLoading ? '...' : '↻'}
             </button>
           </div>
 
-          {loading ? (
+          {skillsLoading ? (
             <div className="settings-card loading">
               <span>Loading skills...</span>
             </div>
@@ -196,10 +178,15 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           ) : (
             <div className="skills-list">
               {skills.map((skill) => (
-                <div key={skill.name} className="skill-card">
+                <div key={skill.path} className="skill-card">
                   <div className="skill-icon">⚡</div>
                   <div className="skill-info">
-                    <span className="skill-name">{skill.name}</span>
+                    <div className="skill-header">
+                      <span className="skill-name">{skill.name}</span>
+                      <span className={`skill-source skill-source-${skill.source}`}>
+                        {skill.source === 'global' ? 'Global' : 'Project'}
+                      </span>
+                    </div>
                     {skill.description && (
                       <span className="skill-description">{skill.description}</span>
                     )}

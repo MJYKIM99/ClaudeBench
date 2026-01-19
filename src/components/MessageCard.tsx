@@ -1,7 +1,8 @@
-import { Component, ReactNode, useState } from 'react';
+import { Component, ReactNode, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { TextShimmer } from './tool-display';
+import { revealInFinder } from '../utils/pathUtils';
 import type { StreamMessage, AssistantMessage, UserMessage, ResultMessage, SystemMessage, ToolUseContent, ToolResultContent } from '../types';
 import './MessageCard.css';
 
@@ -229,8 +230,26 @@ function TextBlock({ text, showIndicator }: { text: string; showIndicator?: bool
 function MarkdownBlock({ text }: { text: string }) {
   if (!text) return null;
 
+  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // 检测 Cmd+Click 在代码块或路径上
+    if (e.metaKey) {
+      const target = e.target as HTMLElement;
+      const codeElement = target.closest('code');
+
+      if (codeElement) {
+        const content = codeElement.textContent || '';
+        // 检查是否是路径
+        if (content.match(/^(\/|~\/)[^\s]+$/)) {
+          e.preventDefault();
+          e.stopPropagation();
+          revealInFinder(content);
+        }
+      }
+    }
+  }, []);
+
   return (
-    <div className="markdown-block">
+    <div className="markdown-block" onClick={handleClick}>
       <ReactMarkdown remarkPlugins={[remarkGfm]}>
         {text}
       </ReactMarkdown>

@@ -69,6 +69,13 @@ interface Attachment {
   size?: number;
 }
 
+interface SkillInfo {
+  name: string;
+  description?: string;
+  path: string;
+  source: 'global' | 'project';
+}
+
 interface SessionInfo {
   id: string;
   title: string;
@@ -98,6 +105,115 @@ function send(event: ServerEvent): void {
 
 function generateId(): string {
   return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// Skills scanning functions
+function parseSkillMetadata(skillPath: string): { name: string; description?: string } | null {
+  const skillMdPath = path.join(skillPath, 'SKILL.md');
+  if (!fs.existsSync(skillMdPath)) {
+    return { name: path.basename(skillPath) };
+  }
+
+  try {
+    const content = fs.readFileSync(skillMdPath, 'utf-8');
+    const lines = content.split('\n');
+
+    let name = path.basename(skillPath);
+    let description: string | undefined;
+    let inFrontmatter = false;
+
+    for (const line of lines) {
+      if (line.trim() === '---') {
+        if (!inFrontmatter) {
+          inFrontmatter = true;
+          continue;
+        } else {
+          break;
+        }
+      }
+
+      if (inFrontmatter) {
+        const nameMatch = line.match(/^name:\s*(.+)$/);
+        if (nameMatch) {
+          name = nameMatch[1].trim().replace(/^["']|["']$/g, '');
+        }
+        const descMatch = line.match(/^description:\s*(.+)$/);
+        if (descMatch) {
+          description = descMatch[1].trim().replace(/^["']|["']$/g, '');
+        }
+      }
+    }
+
+    return { name, description };
+  } catch {
+    return { name: path.basename(skillPath) };
+  }
+}
+
+function scanSkillsDirectory(dirPath: string, source: 'global' | 'project'): SkillInfo[] {
+  if (!fs.existsSync(dirPath)) {
+    return [];
+  }
+
+  const skills: SkillInfo[] = [];
+
+  try {
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (entry.isDirectory() && !entry.name.startsWith('.')) {
+        const skillPath = path.join(dirPath, entry.name);
+        const metadata = parseSkillMetadata(skillPath);
+
+        if (metadata) {
+          skills.push({
+            name: metadata.name,
+            description: metadata.description,
+            path: skillPath,
+            source,
+          });
+        }
+      }
+    }
+  } catch {
+    // Directory read failed, return empty
+  }
+
+  return skills;
+}
+
+function getAllSkills(projectCwd?: string): SkillInfo[] {
+  const home = process.env.HOME || '';
+  const globalSkillsDir = path.join(home, '.claude', 'skills');
+
+  const globalSkills = scanSkillsDirectory(globalSkillsDir, 'global');
+
+  let projectSkills: SkillInfo[] = [];
+  if (projectCwd) {
+    const projectSkillsDir = path.join(projectCwd, '.claude', 'skills');
+    projectSkills = scanSkillsDirectory(projectSkillsDir, 'project');
+  }
+
+  // Merge: project skills override global skills with same name
+  const skillMap = new Map<string, SkillInfo>();
+  for (const skill of globalSkills) {
+    skillMap.set(skill.name, skill);
+  }
+  for (const skill of projectSkills) {
+    skillMap.set(skill.name, skill);
+  }
+
+  return Array.from(skillMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function handleSkillsList(payload: Record<string, unknown>): void {
+  const projectCwd = payload.cwd as string | undefined;
+  const skills = getAllSkills(projectCwd);
+
+  send({
+    type: 'skills.list',
+    payload: { skills },
+  });
 }
 
 // Handlers
@@ -350,6 +466,7 @@ async function runQuery(
         permissionMode: permissionMode === 'bypass' ? 'bypassPermissions' : 'default',
         allowDangerouslySkipPermissions: permissionMode === 'bypass',
         includePartialMessages: true, // Enable streaming
+        settingSources: ['user', 'project', 'local'], // Enable skills from ~/.claude/skills and project .claude/skills
         canUseTool: async (toolName, input, context) => {
           const toolUseId = context?.toolUseId || `tool_${Date.now()}`;
 
@@ -644,6 +761,9 @@ async function handleMessage(line: string): Promise<void> {
       case 'settings.permission.clear':
         handlePermissionPolicyClear();
         break;
+      case 'skills.list':
+        handleSkillsList(event.payload || {});
+        break;
       default:
         send({ type: 'runner.error', payload: { message: `Unknown event type: ${event.type}` } });
     }
@@ -691,18 +811,33 @@ function main(): void {
   });
 
   rl.on('close', () => {
+    cleanupAllSessions();
     store.close();
     process.exit(0);
   });
 
   process.on('SIGTERM', () => {
+    cleanupAllSessions();
     store.close();
     process.exit(0);
   });
   process.on('SIGINT', () => {
+    cleanupAllSessions();
     store.close();
     process.exit(0);
   });
+}
+
+// 清理所有活动会话，中止正在运行的 Claude 进程
+function cleanupAllSessions(): void {
+  for (const [sessionId, session] of sessions) {
+    try {
+      session.abortController.abort();
+    } catch (e) {
+      // 忽略清理错误
+    }
+  }
+  sessions.clear();
 }
 
 main();

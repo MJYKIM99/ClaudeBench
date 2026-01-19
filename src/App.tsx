@@ -15,6 +15,14 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const initRef = useRef(false);
 
+  // Expose send function globally for components that don't have access to the hook
+  useEffect(() => {
+    window.sidecarSend = send;
+    return () => {
+      window.sidecarSend = undefined;
+    };
+  }, [send]);
+
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const sessions = useAppStore((s) => s.sessions);
   const globalError = useAppStore((s) => s.globalError);
@@ -75,7 +83,14 @@ function App() {
   const clearAttachments = useAppStore((s) => s.clearAttachments);
 
   const handleSendMessage = useCallback((prompt: string) => {
-    const currentCwd = cwd || '/';
+    // 如果没有选择工作目录，提示用户先选择
+    if (!cwd) {
+      // 触发 RepoSelector 展开并显示提示
+      useAppStore.getState().setShowCwdPrompt(true);
+      return;
+    }
+
+    const currentCwd = cwd;
     const currentAttachments = attachments.length > 0 ? [...attachments] : undefined;
 
     // Clear attachments after capturing them

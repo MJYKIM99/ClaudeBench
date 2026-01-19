@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, KeyboardEvent, ChangeEvent } from 'react';
+import { useState, useRef, useEffect, useCallback, KeyboardEvent, ChangeEvent, forwardRef, useImperativeHandle } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { SendButton } from './SendButton';
 import { ModeSelector } from './ModeSelector';
@@ -23,7 +23,13 @@ interface ChatInputAreaProps {
   showRepoSelector?: boolean;
 }
 
-export function ChatInputArea({ onSend, onStop, showRepoSelector = false }: ChatInputAreaProps) {
+export interface ChatInputAreaRef {
+  setInput: (value: string) => void;
+  focus: () => void;
+}
+
+export const ChatInputArea = forwardRef<ChatInputAreaRef, ChatInputAreaProps>(
+  function ChatInputArea({ onSend, onStop, showRepoSelector = false }, ref) {
   const [input, setInput] = useState('');
   const [trigger, setTrigger] = useState<TriggerState | null>(null);
   const [menuIndex, setMenuIndex] = useState(0);
@@ -46,6 +52,16 @@ export function ChatInputArea({ onSend, onStop, showRepoSelector = false }: Chat
   const hasContent = input.trim().length > 0;
   // Allow input when no session (welcome page) or when session exists
   const canInput = !isRunning;
+
+  // 暴露 setInput 和 focus 方法给父组件
+  useImperativeHandle(ref, () => ({
+    setInput: (value: string) => {
+      setInput(value);
+    },
+    focus: () => {
+      textareaRef.current?.focus();
+    },
+  }), []);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -357,4 +373,4 @@ export function ChatInputArea({ onSend, onStop, showRepoSelector = false }: Chat
       </div>
     </DropZone>
   );
-}
+});
