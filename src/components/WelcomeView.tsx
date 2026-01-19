@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { ChatInputArea } from './chat-input';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { ChatInputArea, ChatInputAreaRef } from './chat-input';
+import { SkillShortcuts } from './SkillShortcuts';
 import './WelcomeView.css';
 
 interface WelcomeViewProps {
@@ -20,6 +21,7 @@ export function WelcomeView({ onSend, onStop }: WelcomeViewProps) {
   const [displayText, setDisplayText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const chatInputRef = useRef<ChatInputAreaRef>(null);
 
   useEffect(() => {
     const currentPrompt = TYPING_PROMPTS[promptIndex];
@@ -55,6 +57,12 @@ export function WelcomeView({ onSend, onStop }: WelcomeViewProps) {
     return () => clearTimeout(typeTimer);
   }, [displayText, isDeleting, isPaused, promptIndex]);
 
+  const handleSkillSelect = useCallback((prompt: string) => {
+    // 填充到输入框，而不是直接发送
+    chatInputRef.current?.setInput(prompt);
+    chatInputRef.current?.focus();
+  }, []);
+
   return (
     <div className="welcome-view">
       <div className="welcome-content">
@@ -66,7 +74,8 @@ export function WelcomeView({ onSend, onStop }: WelcomeViewProps) {
           </div>
         </div>
         <div className="welcome-input-wrapper">
-          <ChatInputArea onSend={onSend} onStop={onStop} showRepoSelector={true} />
+          <ChatInputArea ref={chatInputRef} onSend={onSend} onStop={onStop} showRepoSelector={true} />
+          <SkillShortcuts onSelect={handleSkillSelect} />
         </div>
       </div>
     </div>

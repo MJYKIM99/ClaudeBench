@@ -147,7 +147,8 @@ export type ClientEvent =
   | { type: 'permission.response'; payload: { sessionId: string; toolUseId: string; result: PermissionResult; toolName?: string; input?: unknown; remember?: boolean; rememberBehavior?: 'always_allow' | 'always_deny' } }
   | { type: 'settings.get' }
   | { type: 'settings.update'; payload: { permissionMode?: PermissionMode; protectedPaths?: string[] } }
-  | { type: 'settings.permission.clear' };
+  | { type: 'settings.permission.clear' }
+  | { type: 'skills.list'; payload?: { cwd?: string } };
 
 export type ServerEvent =
   | { type: 'session.list'; payload: { sessions: SessionInfo[] } }
@@ -159,6 +160,7 @@ export type ServerEvent =
   | { type: 'permission.request'; payload: { sessionId: string; toolUseId: string; toolName: string; input: unknown; isProtectedPath?: boolean } }
   | { type: 'settings.loaded'; payload: { loaded: boolean; path: string | null; hasApiKey: boolean; model?: string } }
   | { type: 'settings.permission'; payload: PermissionSettings }
+  | { type: 'skills.list'; payload: { skills: SkillInfo[] } }
   | { type: 'runner.error'; payload: { message: string } };
 
 export interface ClaudeSettings {
@@ -189,4 +191,12 @@ export interface PermissionSettings {
 export interface PermissionResult {
   behavior: 'allow' | 'deny';
   updatedInput?: unknown;
+}
+
+// Skill types
+export interface SkillInfo {
+  name: string;
+  description?: string;
+  path: string;
+  source: 'global' | 'project';
 }

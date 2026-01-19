@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --format=esm --external:better-sqlite3",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --format=esm --external:better-sqlite3 --external:@anthropic-ai/claude-agent-sdk",
     "dev": "npx tsx src/index.ts",
     "test": "npx tsx src/test.ts"
   },

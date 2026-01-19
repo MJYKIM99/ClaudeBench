@@ -41,6 +41,16 @@
   color: var(--color-mid-gray);
 }
 
+.chat-cwd.clickable {
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.chat-cwd.clickable:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
 .status-badge {
   padding: 4px 12px;
   border-radius: 14px;

@@ -1,0 +1,87 @@
+.skill-shortcuts {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.skill-shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.skill-shortcut-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-normal);
+}
+
+.skill-shortcut-card:hover {
+  background: var(--color-light);
+  border-color: var(--color-mid-gray);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.skill-shortcut-card:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.skill-shortcut-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--color-light-gray);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+  transition: all var(--transition-normal);
+}
+
+.skill-shortcut-card:hover .skill-shortcut-icon {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.skill-shortcut-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.skill-shortcut-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.skill-shortcut-description {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hover state for description */
+.skill-shortcut-card:hover .skill-shortcut-name {
+  color: var(--color-dark);
+}
+
+.skill-shortcut-card:hover .skill-shortcut-description {
+  color: var(--color-text-secondary);
+}

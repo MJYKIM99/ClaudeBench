@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ServerEvent, SessionView, ClaudeSettings, SessionMode, Attachment, PermissionSettings } from '../types';
+import type { ServerEvent, SessionView, ClaudeSettings, SessionMode, Attachment, PermissionSettings, SkillInfo } from '../types';
 
 interface AppState {
   sessions: Record<string, SessionView>;
@@ -13,6 +13,9 @@ interface AppState {
   historyRequested: Set<string>;
   claudeSettings: ClaudeSettings | null;
   permissionSettings: PermissionSettings | null;
+  skills: SkillInfo[];
+  skillsLoading: boolean;
+  showCwdPrompt: boolean;
 
   // New UX state
   mode: SessionMode;
@@ -35,6 +38,8 @@ interface AppState {
   addAttachment: (attachment: Attachment) => void;
   removeAttachment: (id: string) => void;
   clearAttachments: () => void;
+  setSkillsLoading: (loading: boolean) => void;
+  setShowCwdPrompt: (show: boolean) => void;
 }
 
 function createSession(id: string): SessionView {
@@ -60,6 +65,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   historyRequested: new Set(),
   claudeSettings: null,
   permissionSettings: null,
+  skills: [],
+  skillsLoading: false,
+  showCwdPrompt: false,
 
   // New UX state
   mode: 'agent',
@@ -81,6 +89,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   removeAttachment: (id) =>
     set((state) => ({ attachments: state.attachments.filter((a) => a.id !== id) })),
   clearAttachments: () => set({ attachments: [] }),
+  setSkillsLoading: (skillsLoading) => set({ skillsLoading }),
+  setShowCwdPrompt: (showCwdPrompt) => set({ showCwdPrompt }),
 
   markHistoryRequested: (sessionId) => {
     set((state) => {
@@ -354,6 +364,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       case 'settings.permission': {
         set({
           permissionSettings: event.payload,
+        });
+        break;
+      }
+
+      case 'skills.list': {
+        set({
+          skills: event.payload.skills,
+          skillsLoading: false,
         });
         break;
       }

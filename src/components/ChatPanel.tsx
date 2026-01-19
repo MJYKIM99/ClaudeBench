@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { MessageCard } from './MessageCard';
 import { DecisionPanel } from './DecisionPanel';
+import { revealInFinder } from '../utils/pathUtils';
 import type { SystemMessage, PermissionResult, StreamMessage } from '../types';
 import './ChatPanel.css';
 
@@ -125,7 +126,11 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
         <div className="chat-header-left">
           <h2 className="chat-title">{session.title || 'Untitled Session'}</h2>
           {session.cwd && (
-            <span className="chat-cwd" title={session.cwd}>
+            <span
+              className="chat-cwd clickable"
+              title={`${session.cwd} (Click to open in Finder)`}
+              onClick={() => revealInFinder(session.cwd!)}
+            >
               📁 {session.cwd}
             </span>
           )}

@@ -282,6 +282,21 @@ fn send_to_sidecar(state: State<'_, SidecarMutex>, message: String) -> Result<St
 
 // ========== App Entry ==========
 
+/// Open a path in Finder (reveal in Finder)
+#[tauri::command]
+fn reveal_in_finder(path: String) -> Result<String, String> {
+    use std::process::Command;
+
+    // Use macOS `open -R` to reveal in Finder
+    Command::new("open")
+        .arg("-R")
+        .arg(&path)
+        .spawn()
+        .map_err(|e| format!("Failed to open Finder: {}", e))?;
+
+    Ok(format!("Revealed {} in Finder", path))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -293,6 +308,7 @@ pub fn run() {
             start_sidecar,
             stop_sidecar,
             send_to_sidecar,
+            reveal_in_finder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
