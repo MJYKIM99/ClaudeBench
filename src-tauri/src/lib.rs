@@ -147,7 +147,7 @@ fn start_sidecar(state: State<'_, SidecarMutex>, app: tauri::AppHandle) -> Resul
         .resource_dir()
         .map_err(|e| e.to_string())?
         .join("sidecar")
-        .join("index.js");
+        .join("index.cjs");
 
     // Get project root by going up from exe directory (target/debug -> src-tauri -> project)
     let exe_dir = std::env::current_exe()
@@ -162,9 +162,9 @@ fn start_sidecar(state: State<'_, SidecarMutex>, app: tauri::AppHandle) -> Resul
         .and_then(|p| p.parent()); // project root
 
     let dev_sidecar = project_root.map(|root| {
-        let sidecar_js = root.join("sidecar").join("dist").join("index.js");
+        let sidecar_cjs = root.join("sidecar").join("dist").join("index.cjs");
         let sidecar_cwd = root.join("sidecar");
-        (sidecar_js, sidecar_cwd)
+        (sidecar_cjs, sidecar_cwd)
     });
 
     let (sidecar_path, sidecar_cwd) = if let Some((ref js_path, ref cwd_path)) = dev_sidecar {

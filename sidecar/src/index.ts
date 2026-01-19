@@ -774,13 +774,14 @@ async function handleMessage(line: string): Promise<void> {
 }
 
 // Main
-function main(): void {
+async function main(): Promise<void> {
   // Load and apply Claude settings
   settings = loadClaudeSettings();
   applySettings(settings);
 
-  // Initialize SQLite store
+  // Initialize SQLite store (async for sql.js)
   store = new SessionStore();
+  await store.init();
 
   // Send settings loaded event
   send({

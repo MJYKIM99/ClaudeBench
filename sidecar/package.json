@@ -1,20 +1,19 @@
 {
   "name": "claude-gui-sidecar",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Claude Agent SDK bridge for Tauri",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --format=esm --external:better-sqlite3 --external:@anthropic-ai/claude-agent-sdk",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.cjs --format=cjs",
     "dev": "npx tsx src/index.ts",
     "test": "npx tsx src/test.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.11",
-    "better-sqlite3": "^11.7.0"
+    "sql.js": "^1.13.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^25.0.9",
     "esbuild": "^0.27.2",
     "tsx": "^4.21.0",

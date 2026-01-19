@@ -1,7 +1,7 @@
 {
   "name": "claudebench",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Native macOS desktop app for AI-powered task automation using Claude Code",
   "author": "Yi",
   "license": "Apache-2.0",

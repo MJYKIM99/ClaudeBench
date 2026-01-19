@@ -1,8 +1,10 @@
 /**
- * SQLite-based session persistence store
+ * SQLite-based session persistence store using sql.js (pure JS, no native modules)
  */
 
-import Database, { type Database as DatabaseType } from 'better-sqlite3';
+// Use sql-asm.js (pure JS, no WASM file needed) for better bundling compatibility
+import initSqlJs from 'sql.js/dist/sql-asm.js';
+import type { Database as SqlJsDatabase } from 'sql.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -68,17 +70,41 @@ function getDbPath(): string {
 }
 
 export class SessionStore {
-  private db: DatabaseType;
+  private db: SqlJsDatabase | null = null;
+  private dbPath: string;
+  private saveTimer: NodeJS.Timeout | null = null;
+  private initialized = false;
 
   constructor(dbPath?: string) {
-    const dbFile = dbPath || getDbPath();
-    this.db = new Database(dbFile);
-    this.db.pragma('journal_mode = WAL');
+    this.dbPath = dbPath || getDbPath();
+  }
+
+  async init(): Promise<void> {
+    if (this.initialized) return;
+
+    const SQL = await initSqlJs();
+
+    // Load existing database or create new
+    if (fs.existsSync(this.dbPath)) {
+      const buffer = fs.readFileSync(this.dbPath);
+      this.db = new SQL.Database(buffer);
+    } else {
+      this.db = new SQL.Database();
+    }
+
     this.initSchema();
+    this.initialized = true;
+  }
+
+  private ensureInit(): void {
+    if (!this.db) {
+      throw new Error('SessionStore not initialized. Call init() first.');
+    }
   }
 
   private initSchema(): void {
-    this.db.exec(`
+    this.ensureInit();
+    this.db!.run(`
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         title TEXT,
@@ -88,18 +114,22 @@ export class SessionStore {
         last_prompt TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
-      );
+      )
+    `);
 
+    this.db!.run(`
       CREATE TABLE IF NOT EXISTS messages (
         id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL,
         data TEXT NOT NULL,
         created_at INTEGER NOT NULL,
         FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
-      );
+      )
+    `);
 
-      CREATE INDEX IF NOT EXISTS messages_session_id ON messages(session_id);
+    this.db!.run(`CREATE INDEX IF NOT EXISTS messages_session_id ON messages(session_id)`);
 
+    this.db!.run(`
       CREATE TABLE IF NOT EXISTS permission_policies (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         tool_name TEXT NOT NULL,
@@ -107,23 +137,66 @@ export class SessionStore {
         behavior TEXT NOT NULL,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
-      );
+      )
+    `);
 
+    this.db!.run(`
       CREATE TABLE IF NOT EXISTS app_settings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         key TEXT UNIQUE NOT NULL,
         value TEXT NOT NULL,
         updated_at INTEGER NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS permission_policies_tool ON permission_policies(tool_name);
+      )
     `);
+
+    this.db!.run(`CREATE INDEX IF NOT EXISTS permission_policies_tool ON permission_policies(tool_name)`);
 
     // Initialize default permission mode if not exists
     const existing = this.getSetting('permission_mode');
     if (!existing) {
       this.setSetting('permission_mode', 'interactive');
     }
+
+    this.scheduleSave();
+  }
+
+  private scheduleSave(): void {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+    }
+    this.saveTimer = setTimeout(() => this.saveToFile(), 1000);
+  }
+
+  private saveToFile(): void {
+    if (!this.db) return;
+    const data = this.db.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(this.dbPath, buffer);
+  }
+
+  private queryAll<T>(sql: string, params: unknown[] = []): T[] {
+    this.ensureInit();
+    const stmt = this.db!.prepare(sql);
+    if (params.length > 0) {
+      stmt.bind(params);
+    }
+    const results: T[] = [];
+    while (stmt.step()) {
+      results.push(stmt.getAsObject() as T);
+    }
+    stmt.free();
+    return results;
+  }
+
+  private queryOne<T>(sql: string, params: unknown[] = []): T | null {
+    const results = this.queryAll<T>(sql, params);
+    return results[0] || null;
+  }
+
+  private execute(sql: string, params: unknown[] = []): void {
+    this.ensureInit();
+    this.db!.run(sql, params);
+    this.scheduleSave();
   }
 
   createSession(options: SessionCreateOptions): StoredSession {
@@ -139,24 +212,21 @@ export class SessionStore {
       updated_at: now,
     };
 
-    const stmt = this.db.prepare(`
-      INSERT INTO sessions (id, title, claude_session_id, status, cwd, last_prompt, created_at, updated_at)
-      VALUES (@id, @title, @claude_session_id, @status, @cwd, @last_prompt, @created_at, @updated_at)
-    `);
+    this.execute(
+      `INSERT INTO sessions (id, title, claude_session_id, status, cwd, last_prompt, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [session.id, session.title, session.claude_session_id, session.status, session.cwd, session.last_prompt, session.created_at, session.updated_at]
+    );
 
-    stmt.run(session);
     return session;
   }
 
   getSession(id: string): StoredSession | null {
-    const stmt = this.db.prepare('SELECT * FROM sessions WHERE id = ?');
-    const row = stmt.get(id) as StoredSession | undefined;
-    return row || null;
+    return this.queryOne<StoredSession>('SELECT * FROM sessions WHERE id = ?', [id]);
   }
 
   listSessions(): StoredSession[] {
-    const stmt = this.db.prepare('SELECT * FROM sessions ORDER BY updated_at DESC');
-    return stmt.all() as StoredSession[];
+    return this.queryAll<StoredSession>('SELECT * FROM sessions ORDER BY updated_at DESC');
   }
 
   updateSession(id: string, updates: SessionUpdateOptions): void {
@@ -164,46 +234,37 @@ export class SessionStore {
     if (!session) return;
 
     const fields: string[] = [];
-    const values: Record<string, unknown> = { id };
+    const values: unknown[] = [];
 
     if (updates.title !== undefined) {
-      fields.push('title = @title');
-      values.title = updates.title;
+      fields.push('title = ?');
+      values.push(updates.title);
     }
     if (updates.claude_session_id !== undefined) {
-      fields.push('claude_session_id = @claude_session_id');
-      values.claude_session_id = updates.claude_session_id;
+      fields.push('claude_session_id = ?');
+      values.push(updates.claude_session_id);
     }
     if (updates.status !== undefined) {
-      fields.push('status = @status');
-      values.status = updates.status;
+      fields.push('status = ?');
+      values.push(updates.status);
     }
     if (updates.last_prompt !== undefined) {
-      fields.push('last_prompt = @last_prompt');
-      values.last_prompt = updates.last_prompt;
+      fields.push('last_prompt = ?');
+      values.push(updates.last_prompt);
     }
 
-    fields.push('updated_at = @updated_at');
-    values.updated_at = Date.now();
+    fields.push('updated_at = ?');
+    values.push(Date.now());
+    values.push(id);
 
-    if (fields.length === 0) return;
+    if (fields.length === 1) return; // Only updated_at
 
-    const stmt = this.db.prepare(`
-      UPDATE sessions SET ${fields.join(', ')} WHERE id = @id
-    `);
-    stmt.run(values);
+    this.execute(`UPDATE sessions SET ${fields.join(', ')} WHERE id = ?`, values);
   }
 
   deleteSession(id: string): void {
-    const deleteMessages = this.db.prepare('DELETE FROM messages WHERE session_id = ?');
-    const deleteSession = this.db.prepare('DELETE FROM sessions WHERE id = ?');
-
-    const transaction = this.db.transaction(() => {
-      deleteMessages.run(id);
-      deleteSession.run(id);
-    });
-
-    transaction();
+    this.execute('DELETE FROM messages WHERE session_id = ?', [id]);
+    this.execute('DELETE FROM sessions WHERE id = ?', [id]);
   }
 
   recordMessage(sessionId: string, message: unknown): void {
@@ -211,56 +272,59 @@ export class SessionStore {
     const data = JSON.stringify(message);
     const now = Date.now();
 
-    const stmt = this.db.prepare(`
-      INSERT INTO messages (id, session_id, data, created_at)
-      VALUES (@id, @session_id, @data, @created_at)
-    `);
+    this.execute(
+      `INSERT INTO messages (id, session_id, data, created_at) VALUES (?, ?, ?, ?)`,
+      [id, sessionId, data, now]
+    );
 
-    stmt.run({ id, session_id: sessionId, data, created_at: now });
-
-    // Also update session timestamp
-    const updateStmt = this.db.prepare('UPDATE sessions SET updated_at = ? WHERE id = ?');
-    updateStmt.run(now, sessionId);
+    this.execute('UPDATE sessions SET updated_at = ? WHERE id = ?', [now, sessionId]);
   }
 
   getSessionMessages(sessionId: string): unknown[] {
-    const stmt = this.db.prepare(
-      'SELECT data FROM messages WHERE session_id = ? ORDER BY created_at ASC'
+    const rows = this.queryAll<{ data: string }>(
+      'SELECT data FROM messages WHERE session_id = ? ORDER BY created_at ASC',
+      [sessionId]
     );
-    const rows = stmt.all(sessionId) as { data: string }[];
     return rows.map((row) => JSON.parse(row.data));
   }
 
   listRecentCwds(limit: number = 10): string[] {
-    const stmt = this.db.prepare(`
-      SELECT DISTINCT cwd FROM sessions
-      WHERE cwd IS NOT NULL AND cwd != ''
-      ORDER BY updated_at DESC
-      LIMIT ?
-    `);
-    const rows = stmt.all(limit) as { cwd: string }[];
+    const rows = this.queryAll<{ cwd: string }>(
+      `SELECT DISTINCT cwd FROM sessions
+       WHERE cwd IS NOT NULL AND cwd != ''
+       ORDER BY updated_at DESC
+       LIMIT ?`,
+      [limit]
+    );
     return rows.map((row) => row.cwd);
   }
 
   close(): void {
-    this.db.close();
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+    }
+    this.saveToFile();
+    if (this.db) {
+      this.db.close();
+      this.db = null;
+    }
+    this.initialized = false;
   }
 
   // Settings management
   getSetting(key: string): string | null {
-    const stmt = this.db.prepare('SELECT value FROM app_settings WHERE key = ?');
-    const row = stmt.get(key) as { value: string } | undefined;
+    const row = this.queryOne<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', [key]);
     return row?.value || null;
   }
 
   setSetting(key: string, value: string): void {
     const now = Date.now();
-    const stmt = this.db.prepare(`
-      INSERT INTO app_settings (key, value, updated_at)
-      VALUES (@key, @value, @updated_at)
-      ON CONFLICT(key) DO UPDATE SET value = @value, updated_at = @updated_at
-    `);
-    stmt.run({ key, value, updated_at: now });
+    const existing = this.getSetting(key);
+    if (existing !== null) {
+      this.execute('UPDATE app_settings SET value = ?, updated_at = ? WHERE key = ?', [value, now, key]);
+    } else {
+      this.execute('INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)', [key, value, now]);
+    }
   }
 
   getPermissionMode(): PermissionMode {
@@ -277,45 +341,38 @@ export class SessionStore {
 
   // Permission policies
   getPermissionPolicies(): PermissionPolicy[] {
-    const stmt = this.db.prepare('SELECT * FROM permission_policies ORDER BY created_at DESC');
-    return stmt.all() as PermissionPolicy[];
+    return this.queryAll<PermissionPolicy>('SELECT * FROM permission_policies ORDER BY created_at DESC');
   }
 
   getPermissionPolicy(toolName: string, pathPattern?: string): PermissionPolicy | null {
-    let stmt;
     if (pathPattern) {
-      stmt = this.db.prepare('SELECT * FROM permission_policies WHERE tool_name = ? AND path_pattern = ?');
-      const row = stmt.get(toolName, pathPattern) as PermissionPolicy | undefined;
+      const row = this.queryOne<PermissionPolicy>(
+        'SELECT * FROM permission_policies WHERE tool_name = ? AND path_pattern = ?',
+        [toolName, pathPattern]
+      );
       if (row) return row;
     }
-    // Fall back to tool-only policy
-    stmt = this.db.prepare('SELECT * FROM permission_policies WHERE tool_name = ? AND path_pattern IS NULL');
-    const row = stmt.get(toolName) as PermissionPolicy | undefined;
-    return row || null;
+    return this.queryOne<PermissionPolicy>(
+      'SELECT * FROM permission_policies WHERE tool_name = ? AND path_pattern IS NULL',
+      [toolName]
+    );
   }
 
   addPermissionPolicy(toolName: string, behavior: 'always_allow' | 'always_deny' | 'ask', pathPattern?: string): void {
     const now = Date.now();
-    const stmt = this.db.prepare(`
-      INSERT INTO permission_policies (tool_name, path_pattern, behavior, created_at, updated_at)
-      VALUES (@tool_name, @path_pattern, @behavior, @created_at, @updated_at)
-    `);
-    stmt.run({
-      tool_name: toolName,
-      path_pattern: pathPattern || null,
-      behavior,
-      created_at: now,
-      updated_at: now,
-    });
+    this.execute(
+      `INSERT INTO permission_policies (tool_name, path_pattern, behavior, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [toolName, pathPattern || null, behavior, now, now]
+    );
   }
 
   deletePermissionPolicy(id: number): void {
-    const stmt = this.db.prepare('DELETE FROM permission_policies WHERE id = ?');
-    stmt.run(id);
+    this.execute('DELETE FROM permission_policies WHERE id = ?', [id]);
   }
 
   clearAllPermissionPolicies(): void {
-    this.db.exec('DELETE FROM permission_policies');
+    this.execute('DELETE FROM permission_policies');
   }
 
   // Protected paths (sensitive directories that should always require confirmation)
