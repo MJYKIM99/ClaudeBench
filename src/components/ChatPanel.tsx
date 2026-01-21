@@ -122,9 +122,9 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
 
   return (
     <div className="chat-panel">
-      <div className="chat-header">
-        <div className="chat-header-left">
-          <h2 className="chat-title">{session.title || 'Untitled Session'}</h2>
+      <div className="chat-header" data-tauri-drag-region="true">
+        <div className="chat-header-left" data-tauri-drag-region="true">
+          <h2 className="chat-title" data-tauri-drag-region="true">{session.title || 'Untitled Session'}</h2>
           {session.cwd && (
             <span
               className="chat-cwd clickable"
@@ -197,6 +197,7 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
             {messageGroups.map((group, groupIndex) => {
               const isLastGroup = groupIndex === messageGroups.length - 1;
               const allResponses = group.responses;
+              const isWaitingForResponse = isLastGroup && allResponses.length === 0 && session.status === 'running';
 
               return (
                 <div key={groupIndex} className="message-group">
@@ -219,6 +220,16 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
                       />
                     );
                   })}
+                  {isWaitingForResponse && (
+                    <div className="agent-loading">
+                      <div className="loading-indicator">
+                        <span className="loading-dot"></span>
+                        <span className="loading-dot"></span>
+                        <span className="loading-dot"></span>
+                      </div>
+                      <span className="loading-text">Agent is thinking...</span>
+                    </div>
+                  )}
                 </div>
               );
             })}

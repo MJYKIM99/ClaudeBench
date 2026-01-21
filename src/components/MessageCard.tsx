@@ -3,6 +3,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { TextShimmer } from './tool-display';
 import { revealInFinder } from '../utils/pathUtils';
+import { saveArtifact } from '../utils/fileUtils';
+import { useAppStore } from '../store/useAppStore';
 import type { StreamMessage, AssistantMessage, UserMessage, ResultMessage, SystemMessage, ToolUseContent, ToolResultContent } from '../types';
 import './MessageCard.css';
 
@@ -204,6 +206,38 @@ function AssistantCard({ message, showIndicator }: { message: AssistantMessage; 
 }
 
 function TextBlock({ text, showIndicator }: { text: string; showIndicator?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const sessions = useAppStore((s) => s.sessions);
+  const cwd = activeSessionId ? sessions[activeSessionId]?.cwd : null;
+
+  const handleCopy = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  }, [text]);
+
+  const handleSave = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!cwd) return;
+
+    try {
+      const filePath = await saveArtifact(cwd, text);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      revealInFinder(filePath);
+    } catch (err) {
+      console.error('Failed to save:', err);
+    }
+  }, [text, cwd]);
+
   if (!text) return null;
 
   return (
@@ -217,6 +251,16 @@ function TextBlock({ text, showIndicator }: { text: string; showIndicator?: bool
         ) : (
           <span className="header-label">Assistant</span>
         )}
+        <div className="message-actions">
+          <button className="action-btn copy-btn" onClick={handleCopy} title="Copy message">
+            {copied ? '✓' : '⎘'}
+          </button>
+          {cwd && (
+            <button className="action-btn save-btn" onClick={handleSave} title="Save as Markdown">
+              {saved ? '✓' : '↓'}
+            </button>
+          )}
+        </div>
       </div>
       <div className="message-body">
         <MarkdownBlock text={text} />

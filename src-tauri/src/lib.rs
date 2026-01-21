@@ -297,6 +297,22 @@ fn reveal_in_finder(path: String) -> Result<String, String> {
     Ok(format!("Revealed {} in Finder", path))
 }
 
+/// Save content as an artifact file in the session's working directory
+#[tauri::command]
+fn save_artifact(cwd: String, content: String, filename: String) -> Result<String, String> {
+    let artifacts_dir = std::path::Path::new(&cwd).join(".claude").join("artifacts");
+
+    // Ensure directory exists
+    std::fs::create_dir_all(&artifacts_dir)
+        .map_err(|e| format!("Failed to create artifacts directory: {}", e))?;
+
+    let file_path = artifacts_dir.join(&filename);
+    std::fs::write(&file_path, &content)
+        .map_err(|e| format!("Failed to write file: {}", e))?;
+
+    Ok(file_path.to_string_lossy().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -309,6 +325,7 @@ pub fn run() {
             stop_sidecar,
             send_to_sidecar,
             reveal_in_finder,
+            save_artifact,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

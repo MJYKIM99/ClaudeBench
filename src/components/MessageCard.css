@@ -49,6 +49,40 @@
   color: var(--color-primary);
 }
 
+/* Message action buttons */
+.message-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.action-btn {
+  opacity: 0;
+  transition: opacity var(--transition-fast), background var(--transition-fast);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  line-height: 1;
+}
+
+.message-card:hover .action-btn {
+  opacity: 1;
+}
+
+.action-btn:hover {
+  background: var(--color-light-gray);
+  color: var(--color-primary);
+}
+
+.action-btn:active {
+  transform: scale(0.95);
+}
+
 .message-body {
   padding-left: 16px;
 }

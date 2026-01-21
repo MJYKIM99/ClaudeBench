@@ -211,6 +211,7 @@ npm run tauri build
 
 | Version | Date | Changes |
 |---------|------|---------|
+| **v0.1.3** | 2026-01-21 | Improved window drag region for macOS; Simplified About section in Settings; Fixed app icon display in About page |
 | **v0.1.2** | 2026-01-20 | Fix production build: Replace better-sqlite3 (native module) with sql.js (pure JS) for fully self-contained sidecar bundle; Bundle all dependencies including Claude Agent SDK |
 | **v0.1.1** | 2026-01-19 | Skills system with real scanning from `~/.claude/skills` and project directories; Quick action shortcuts on welcome screen; Context menu for sessions (Open in Finder, Delete); Proper process cleanup on exit |
 | **v0.1.0** | 2026-01-18 | Initial release - Native macOS GUI for Claude Code with session persistence, real-time streaming, and permission control |

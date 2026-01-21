@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { revealInFinder } from '../utils/pathUtils';
 import type { SessionView } from '../types';
@@ -74,6 +74,27 @@ export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings }: Sideb
     setContextMenu((prev) => ({ ...prev, visible: false }));
   }, []);
 
+  // Close context menu when clicking anywhere outside
+  useEffect(() => {
+    if (!contextMenu.visible) return;
+
+    const handleClickOutside = () => {
+      closeContextMenu();
+    };
+
+    // Add listener on next tick to avoid immediate trigger
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+      document.addEventListener('contextmenu', handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('contextmenu', handleClickOutside);
+    };
+  }, [contextMenu.visible, closeContextMenu]);
+
   const handleOpenInFinder = useCallback(() => {
     if (contextMenu.sessionCwd) {
       revealInFinder(contextMenu.sessionCwd);
@@ -90,7 +111,7 @@ export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings }: Sideb
 
   return (
     <aside className="sidebar" onClick={closeContextMenu}>
-      <div className="sidebar-header">
+      <div className="sidebar-header" data-tauri-drag-region="true">
         <div className="sidebar-brand">
           <img src="/icon-64.png" alt="ClaudeBench" className="sidebar-logo" />
           <h1 className="sidebar-title">ClaudeBench</h1>
@@ -156,7 +177,7 @@ export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings }: Sideb
         <button className="settings-btn" onClick={onOpenSettings}>
           ⚙ Settings
         </button>
-        <span className="version">v0.1.0</span>
+        <span className="version">v0.1.3</span>
       </div>
 
       {/* Context Menu */}

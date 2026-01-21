@@ -97,16 +97,18 @@ body {
   position: relative;
 }
 
-/* Titlebar drag region for main content */
-.main-content::before {
-  content: '';
+/* Titlebar drag region for main content - real DOM element for Tauri compatibility */
+.titlebar-drag-region {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 40px;
+  height: 52px;
   -webkit-app-region: drag;
-  z-index: 10;
+  z-index: 1000;
+  pointer-events: auto;
+  /* Debug: uncomment to see the drag region */
+  /* background: rgba(255, 0, 0, 0.1); */
 }
 
 /* Utility Classes */

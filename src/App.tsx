@@ -183,6 +183,11 @@ function App() {
       />
 
       <main className="main-content">
+        <div
+          className="titlebar-drag-region"
+          data-tauri-drag-region="true"
+          onMouseDown={(e) => e.stopPropagation()}
+        />
         {showWelcome ? (
           <WelcomeView onSend={handleSendMessage} onStop={handleStopSession} />
         ) : (

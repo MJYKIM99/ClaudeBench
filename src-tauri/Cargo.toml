@@ -1,6 +1,6 @@
 [package]
 name = "claudebench"
-version = "0.1.2"
+version = "0.1.3"
 description = "Native macOS desktop app for AI-powered task automation using Claude Code"
 authors = ["Yi"]
 edition = "2021"

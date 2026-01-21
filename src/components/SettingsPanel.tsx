@@ -11,7 +11,7 @@ interface SettingsPanelProps {
 function AppIcon({ size = 48 }: { size?: number }) {
   return (
     <img
-      src="/claudebenchicon.png"
+      src="/icon.png"
       alt="ClaudeBench"
       width={size}
       height={size}
@@ -209,22 +209,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <AppIcon size={56} />
               <div className="about-title">
                 <h4>ClaudeBench</h4>
-                <span className="version-badge">v0.1.0</span>
+                <span className="version-badge">v0.1.3</span>
               </div>
             </div>
             <p className="about-description">
               A native desktop interface for Claude Code, providing a visual GUI for coding assistance powered by Claude AI.
             </p>
-            <div className="about-details">
-              <div className="about-row">
-                <span className="about-label">Built with</span>
-                <span className="about-value">Tauri + React + Claude Agent SDK</span>
-              </div>
-              <div className="about-row">
-                <span className="about-label">Platform</span>
-                <span className="about-value">macOS / Windows / Linux</span>
-              </div>
-            </div>
             <div className="about-links">
               <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="about-link">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
