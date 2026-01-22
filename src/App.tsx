@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { Sidebar } from './components/Sidebar';
 import { ChatPanel } from './components/ChatPanel';
 import { ChatInputArea } from './components/chat-input';
@@ -30,6 +31,28 @@ function App() {
       window.sidecarSend = undefined;
     };
   }, [send]);
+
+  // Intercept all external links and open in default browser
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest('a');
+      if (!anchor) return;
+
+      const href = anchor.getAttribute('href');
+      if (!href) return;
+
+      // Check if it's an external link (http/https)
+      if (href.startsWith('http://') || href.startsWith('https://')) {
+        e.preventDefault();
+        e.stopPropagation();
+        openUrl(href).catch(console.error);
+      }
+    };
+
+    document.addEventListener('click', handleClick, true);
+    return () => document.removeEventListener('click', handleClick, true);
+  }, []);
 
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const sessions = useAppStore((s) => s.sessions);
@@ -93,6 +116,11 @@ function App() {
   // Auto-load session history when switching sessions
   useEffect(() => {
     if (!activeSessionId) return;
+
+    // Close skills page when user selects a session
+    if (showSkills) {
+      setShowSkills(false);
+    }
 
     const session = sessions[activeSessionId];
     const { historyRequested, markHistoryRequested } = useAppStore.getState();

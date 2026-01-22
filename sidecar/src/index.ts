@@ -10,6 +10,7 @@ import * as path from 'path';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { SessionStore, type PermissionMode } from './session-store.js';
 import { loadClaudeSettings, applySettings, type LoadedSettings } from './claude-settings.js';
+import { generateSessionTitle } from './title-generator.js';
 
 // Global error handlers to prevent crashes
 process.on('uncaughtException', (error) => {
@@ -197,6 +198,8 @@ interface SessionData {
   messages: unknown[];
   abortController: AbortController;
   pendingPermissions: Map<string, (result: { behavior: string; updatedInput?: unknown }) => void>;
+  isFirstQuery?: boolean;
+  firstPrompt?: string;
 }
 
 // State
@@ -541,6 +544,8 @@ async function handleSessionStart(payload: Record<string, unknown>): Promise<voi
     messages: [],
     abortController: new AbortController(),
     pendingPermissions: new Map(),
+    isFirstQuery: true,
+    firstPrompt: prompt,
   };
 
   sessions.set(sessionId, session);
@@ -763,6 +768,8 @@ async function runQuery(
       },
     });
 
+    let assistantResponseText = '';
+
     for await (const message of q) {
       // Extract session_id from system init message for resume capability
       if (message.type === 'system' && 'subtype' in message && message.subtype === 'init') {
@@ -771,6 +778,16 @@ async function runQuery(
           session.info.claudeSessionId = sdkSessionId;
           // Persist to SQLite
           store.updateSession(sessionId, { claude_session_id: sdkSessionId });
+        }
+      }
+
+      // Collect assistant response text for title generation
+      if (message.type === 'assistant' && 'content' in message) {
+        const content = (message as { content: Array<{ type: string; text?: string }> }).content;
+        for (const block of content) {
+          if (block.type === 'text' && block.text) {
+            assistantResponseText += block.text;
+          }
         }
       }
 
@@ -797,6 +814,26 @@ async function runQuery(
           type: 'session.status',
           payload: { sessionId, status },
         });
+
+        // Generate title for first query after successful completion
+        if (session.isFirstQuery && status === 'completed' && session.firstPrompt && claudeCodePath) {
+          session.isFirstQuery = false;
+          // Run title generation asynchronously (don't block)
+          generateSessionTitle(session.firstPrompt, assistantResponseText, claudeCodePath)
+            .then((newTitle) => {
+              if (newTitle) {
+                session.info.title = newTitle;
+                store.updateSession(sessionId, { title: newTitle });
+                send({
+                  type: 'session.status',
+                  payload: { sessionId, status: session.info.status, title: newTitle },
+                });
+              }
+            })
+            .catch(() => {
+              // Silently ignore title generation errors
+            });
+        }
       }
     }
   } catch (error) {
