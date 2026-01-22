@@ -375,3 +375,41 @@
   font-weight: 500;
   color: var(--color-primary);
 }
+
+/* Skill tag */
+.skill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  background: var(--color-primary-light);
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.skill-tag-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-primary);
+}
+
+.skill-tag-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--color-primary);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all var(--transition-fast);
+}
+
+.skill-tag-close:hover {
+  opacity: 1;
+  background: rgba(217, 119, 87, 0.2);
+}

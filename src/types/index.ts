@@ -148,7 +148,13 @@ export type ClientEvent =
   | { type: 'settings.get' }
   | { type: 'settings.update'; payload: { permissionMode?: PermissionMode; protectedPaths?: string[] } }
   | { type: 'settings.permission.clear' }
-  | { type: 'skills.list'; payload?: { cwd?: string } };
+  | { type: 'skills.list'; payload?: { cwd?: string } }
+  | { type: 'skills.install'; payload: { url: string } }
+  | { type: 'skills.delete'; payload: { path: string } }
+  | { type: 'skills.open'; payload: { path: string } }
+  | { type: 'skills.openReferenceFolder'; payload?: { path?: string } }
+  | { type: 'skills.installBundled' }
+  | { type: 'env.check' };
 
 export type ServerEvent =
   | { type: 'session.list'; payload: { sessions: SessionInfo[] } }
@@ -194,9 +200,34 @@ export interface PermissionResult {
 }
 
 // Skill types
+export type SkillCategory =
+  | 'file-management'
+  | 'content-creation'
+  | 'productivity'
+  | 'learning'
+  | 'lifestyle'
+  | 'development'
+  | 'other';
+
 export interface SkillInfo {
   name: string;
   description?: string;
   path: string;
   source: 'global' | 'project';
+  category?: SkillCategory;
+  icon?: string;
+  tags?: string[];
+  author?: string;
+  version?: string;
+  enabled?: boolean;
 }
+
+export const SKILL_CATEGORIES: Record<SkillCategory, { name: string; iconType: string; color: string }> = {
+  'file-management': { name: 'Files', iconType: 'folder', color: '#3B82F6' },
+  'content-creation': { name: 'Content', iconType: 'pen', color: '#8B5CF6' },
+  'productivity': { name: 'Productivity', iconType: 'zap', color: '#F59E0B' },
+  'learning': { name: 'Learning', iconType: 'book', color: '#10B981' },
+  'lifestyle': { name: 'Lifestyle', iconType: 'home', color: '#EC4899' },
+  'development': { name: 'Development', iconType: 'code', color: '#6366F1' },
+  'other': { name: 'Other', iconType: 'tool', color: '#6B7280' },
+};

@@ -5,6 +5,8 @@ import { ChatPanel } from './components/ChatPanel';
 import { ChatInputArea } from './components/chat-input';
 import { WelcomeView } from './components/WelcomeView';
 import { SettingsPanel } from './components/SettingsPanel';
+import { SkillsPage } from './components/skills';
+import { SetupDialog } from './components/SetupDialog';
 import { useSidecar } from './hooks/useSidecar';
 import { useAppStore } from './store/useAppStore';
 import type { PermissionResult } from './types';
@@ -13,6 +15,12 @@ import './App.css';
 function App() {
   const { start, send } = useSidecar();
   const [showSettings, setShowSettings] = useState(false);
+  const [showSkills, setShowSkills] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
+  const [envStatus, setEnvStatus] = useState<{
+    hasClaudeCode: boolean;
+    missingSkills: string[];
+  } | null>(null);
   const initRef = useRef(false);
 
   // Expose send function globally for components that don't have access to the hook
@@ -42,6 +50,8 @@ function App() {
           await start();
           // Request session list after connection
           send({ type: 'session.list' });
+          // Check environment status
+          send({ type: 'env.check' });
         }
       } catch (e) {
         console.error('Failed to initialize:', e);
@@ -49,6 +59,36 @@ function App() {
     };
     init();
   }, [start, send]);
+
+  // Listen for environment status from sidecar
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data.type === 'env.status') {
+          const { hasClaudeCode, missingSkills } = data.payload;
+          setEnvStatus({ hasClaudeCode, missingSkills });
+          // Show setup dialog if Claude Code is missing or skills need to be installed
+          if (!hasClaudeCode || missingSkills.length > 0) {
+            // Check if user has dismissed before (using localStorage)
+            const dismissed = localStorage.getItem('setupDismissed');
+            if (!dismissed) {
+              setShowSetup(true);
+            }
+          }
+        } else if (data.type === 'skills.bundled.installed') {
+          // Skills installed, refresh skills list and close dialog
+          send({ type: 'skills.list', payload: {} });
+          setShowSetup(false);
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [send]);
 
   // Auto-load session history when switching sessions
   useEffect(() => {
@@ -71,7 +111,33 @@ function App() {
 
   const handleOpenSettings = useCallback(() => {
     setShowSettings(true);
+    setShowSkills(false);
   }, []);
+
+  const handleOpenSkills = useCallback(() => {
+    setShowSkills(true);
+    setShowSettings(false);
+  }, []);
+
+  const handleCloseSkills = useCallback(() => {
+    setShowSkills(false);
+  }, []);
+
+  const handleInstallBundledSkills = useCallback(() => {
+    send({ type: 'skills.installBundled' });
+  }, [send]);
+
+  const handleDismissSetup = useCallback(() => {
+    setShowSetup(false);
+    localStorage.setItem('setupDismissed', 'true');
+  }, []);
+
+  const handleUseSkill = useCallback(() => {
+    // Just close skills page - pendingSkill is already set by SkillShortcuts
+    setShowSkills(false);
+    // Clear active session to show welcome page with pre-filled input
+    setActiveSessionId(null);
+  }, [setActiveSessionId]);
 
   const handleDeleteSession = useCallback((sessionId: string) => {
     send({ type: 'session.delete', payload: { sessionId } });
@@ -180,6 +246,7 @@ function App() {
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
         onOpenSettings={handleOpenSettings}
+        onOpenSkills={handleOpenSkills}
       />
 
       <main className="main-content">
@@ -188,7 +255,9 @@ function App() {
           data-tauri-drag-region="true"
           onMouseDown={(e) => e.stopPropagation()}
         />
-        {showWelcome ? (
+        {showSkills ? (
+          <SkillsPage onClose={handleCloseSkills} onUseSkill={handleUseSkill} />
+        ) : showWelcome ? (
           <WelcomeView onSend={handleSendMessage} onStop={handleStopSession} />
         ) : (
           <>
@@ -213,6 +282,15 @@ function App() {
           <span>{globalError}</span>
           <button onClick={() => setGlobalError(null)}>×</button>
         </div>
+      )}
+
+      {showSetup && envStatus && (
+        <SetupDialog
+          hasClaudeCode={envStatus.hasClaudeCode}
+          missingSkills={envStatus.missingSkills}
+          onInstallSkills={handleInstallBundledSkills}
+          onDismiss={handleDismissSetup}
+        />
       )}
     </div>
   );

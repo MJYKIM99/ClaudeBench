@@ -49,6 +49,112 @@ function findClaudeCodePath(): string | undefined {
 
 const claudeCodePath = findClaudeCodePath();
 
+// Bundled skills that ship with the app
+const BUNDLED_SKILLS = [
+  'file-organizer',
+  'image-processor',
+  'deep-researcher',
+  'frontend-design',
+  'subtitle-proofreader',
+  'content-creator',
+];
+
+// Check environment and install bundled skills
+function checkEnvironment(): { hasClaudeCode: boolean; skillsInstalled: boolean; missingSkills: string[] } {
+  const home = process.env.HOME || '';
+  const skillsDir = path.join(home, '.claude', 'skills');
+
+  const hasClaudeCode = !!claudeCodePath;
+
+  // Check which bundled skills are missing
+  const missingSkills: string[] = [];
+  for (const skillName of BUNDLED_SKILLS) {
+    const skillPath = path.join(skillsDir, skillName);
+    if (!fs.existsSync(skillPath)) {
+      missingSkills.push(skillName);
+    }
+  }
+
+  return {
+    hasClaudeCode,
+    skillsInstalled: missingSkills.length === 0,
+    missingSkills,
+  };
+}
+
+// Install bundled skills from sidecar/bundled-skills directory
+function installBundledSkills(): { success: boolean; installed: string[]; errors: string[] } {
+  const home = process.env.HOME || '';
+  const skillsDir = path.join(home, '.claude', 'skills');
+
+  // Ensure skills directory exists
+  if (!fs.existsSync(skillsDir)) {
+    fs.mkdirSync(skillsDir, { recursive: true });
+  }
+
+  const installed: string[] = [];
+  const errors: string[] = [];
+
+  // Find bundled-skills directory (relative to this script)
+  const bundledDir = path.join(__dirname, '..', 'bundled-skills');
+
+  if (!fs.existsSync(bundledDir)) {
+    return { success: false, installed: [], errors: ['Bundled skills directory not found'] };
+  }
+
+  for (const skillName of BUNDLED_SKILLS) {
+    const sourcePath = path.join(bundledDir, `${skillName}.md`);
+    const targetDir = path.join(skillsDir, skillName);
+    const targetPath = path.join(targetDir, 'SKILL.md');
+
+    // Skip if already installed
+    if (fs.existsSync(targetPath)) {
+      continue;
+    }
+
+    try {
+      // Create skill directory
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+
+      // Copy skill file
+      if (fs.existsSync(sourcePath)) {
+        fs.copyFileSync(sourcePath, targetPath);
+        installed.push(skillName);
+      } else {
+        errors.push(`Source not found: ${skillName}`);
+      }
+    } catch (err) {
+      errors.push(`Failed to install ${skillName}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  return {
+    success: errors.length === 0,
+    installed,
+    errors,
+  };
+}
+
+// Handle environment check request
+function handleEnvCheck(): void {
+  const result = checkEnvironment();
+  send({
+    type: 'env.status',
+    payload: result,
+  });
+}
+
+// Handle bundled skills installation request
+function handleInstallBundledSkills(): void {
+  const result = installBundledSkills();
+  send({
+    type: 'skills.bundled.installed',
+    payload: result,
+  });
+}
+
 // Types
 interface ClientEvent {
   type: string;
@@ -214,6 +320,99 @@ function handleSkillsList(payload: Record<string, unknown>): void {
     type: 'skills.list',
     payload: { skills },
   });
+}
+
+// Install skill from GitHub
+async function handleSkillsInstall(payload: Record<string, unknown>): Promise<void> {
+  const url = payload.url as string;
+  if (!url) {
+    send({ type: 'runner.error', payload: { message: 'No URL provided' } });
+    return;
+  }
+
+  const home = process.env.HOME || '';
+  const skillsDir = path.join(home, '.claude', 'skills');
+
+  // Extract repo name from URL
+  const match = url.match(/github\.com\/[\w-]+\/([\w-]+)/);
+  if (!match) {
+    send({ type: 'runner.error', payload: { message: 'Invalid GitHub URL' } });
+    return;
+  }
+
+  const repoName = match[1];
+  const targetDir = path.join(skillsDir, repoName);
+
+  try {
+    // Ensure skills directory exists
+    if (!fs.existsSync(skillsDir)) {
+      fs.mkdirSync(skillsDir, { recursive: true });
+    }
+
+    // Clone the repository using git
+    const { execSync } = await import('child_process');
+    execSync(`git clone ${url} "${targetDir}"`, { stdio: 'pipe' });
+
+    send({
+      type: 'skills.installed',
+      payload: { success: true, name: repoName, path: targetDir },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Installation failed';
+    send({ type: 'runner.error', payload: { message } });
+  }
+}
+
+// Delete a skill
+function handleSkillsDelete(payload: Record<string, unknown>): void {
+  const skillPath = payload.path as string;
+  if (!skillPath) {
+    send({ type: 'runner.error', payload: { message: 'No path provided' } });
+    return;
+  }
+
+  try {
+    fs.rmSync(skillPath, { recursive: true, force: true });
+    send({
+      type: 'skills.deleted',
+      payload: { success: true, path: skillPath },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Delete failed';
+    send({ type: 'runner.error', payload: { message } });
+  }
+}
+
+// Open skill folder in Finder
+function handleSkillsOpen(payload: Record<string, unknown>): void {
+  const skillPath = payload.path as string;
+  if (!skillPath) return;
+
+  try {
+    const { execSync } = require('child_process');
+    execSync(`open "${skillPath}"`);
+  } catch {
+    // Ignore errors
+  }
+}
+
+// Open reference folder (create if needed)
+function handleOpenReferenceFolder(payload: Record<string, unknown>): void {
+  const home = process.env.HOME || '';
+  const refFolder = path.join(home, '.claude', 'skill-references');
+
+  try {
+    // Create folder if it doesn't exist
+    if (!fs.existsSync(refFolder)) {
+      fs.mkdirSync(refFolder, { recursive: true });
+    }
+
+    // Open in Finder
+    const { execSync } = require('child_process');
+    execSync(`open "${refFolder}"`);
+  } catch {
+    // Ignore errors
+  }
 }
 
 // Handlers
@@ -763,6 +962,24 @@ async function handleMessage(line: string): Promise<void> {
         break;
       case 'skills.list':
         handleSkillsList(event.payload || {});
+        break;
+      case 'skills.install':
+        await handleSkillsInstall(event.payload || {});
+        break;
+      case 'skills.delete':
+        handleSkillsDelete(event.payload || {});
+        break;
+      case 'skills.open':
+        handleSkillsOpen(event.payload || {});
+        break;
+      case 'skills.openReferenceFolder':
+        handleOpenReferenceFolder(event.payload || {});
+        break;
+      case 'env.check':
+        handleEnvCheck();
+        break;
+      case 'skills.installBundled':
+        handleInstallBundledSkills();
         break;
       default:
         send({ type: 'runner.error', payload: { message: `Unknown event type: ${event.type}` } });

@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import type { ServerEvent, SessionView, ClaudeSettings, SessionMode, Attachment, PermissionSettings, SkillInfo } from '../types';
 
+interface PendingSkill {
+  name: string;
+  prompt: string;
+}
+
 interface AppState {
   sessions: Record<string, SessionView>;
   activeSessionId: string | null;
@@ -16,6 +21,7 @@ interface AppState {
   skills: SkillInfo[];
   skillsLoading: boolean;
   showCwdPrompt: boolean;
+  pendingSkill: PendingSkill | null;
 
   // New UX state
   mode: SessionMode;
@@ -40,6 +46,7 @@ interface AppState {
   clearAttachments: () => void;
   setSkillsLoading: (loading: boolean) => void;
   setShowCwdPrompt: (show: boolean) => void;
+  setPendingSkill: (skill: PendingSkill | null) => void;
 }
 
 function createSession(id: string): SessionView {
@@ -68,6 +75,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   skills: [],
   skillsLoading: false,
   showCwdPrompt: false,
+  pendingSkill: null,
 
   // New UX state
   mode: 'agent',
@@ -91,6 +99,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearAttachments: () => set({ attachments: [] }),
   setSkillsLoading: (skillsLoading) => set({ skillsLoading }),
   setShowCwdPrompt: (showCwdPrompt) => set({ showCwdPrompt }),
+  setPendingSkill: (pendingSkill) => set({ pendingSkill }),
 
   markHistoryRequested: (sessionId) => {
     set((state) => {

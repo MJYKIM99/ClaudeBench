@@ -53,6 +53,36 @@ export const ChatInputArea = forwardRef<ChatInputAreaRef, ChatInputAreaProps>(
   // Allow input when no session (welcome page) or when session exists
   const canInput = !isRunning;
 
+  // Pending skill state
+  const pendingSkill = useAppStore((s) => s.pendingSkill);
+  const setPendingSkill = useAppStore((s) => s.setPendingSkill);
+
+  // Sync pending skill prompt to input
+  useEffect(() => {
+    if (pendingSkill) {
+      setInput(pendingSkill.prompt);
+      textareaRef.current?.focus();
+    }
+  }, [pendingSkill]);
+
+  // Clear pending skill after sending
+  const handleSubmit = useCallback(() => {
+    const trimmed = input.trim();
+    if (!trimmed || isRunning) return;
+
+    onSend(trimmed);
+    setInput('');
+    clearAttachments();
+    setPendingSkill(null);
+  }, [input, isRunning, onSend, clearAttachments, setPendingSkill]);
+
+  // Clear pending skill handler
+  const handleClearSkill = useCallback(() => {
+    setPendingSkill(null);
+    setInput('');
+    textareaRef.current?.focus();
+  }, [setPendingSkill]);
+
   // 暴露 setInput 和 focus 方法给父组件
   useImperativeHandle(ref, () => ({
     setInput: (value: string) => {
@@ -69,15 +99,6 @@ export const ChatInputArea = forwardRef<ChatInputAreaRef, ChatInputAreaProps>(
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
   }, [input]);
-
-  const handleSubmit = useCallback(() => {
-    const trimmed = input.trim();
-    if (!trimmed || isRunning) return;
-
-    onSend(trimmed);
-    setInput('');
-    clearAttachments();
-  }, [input, isRunning, onSend, clearAttachments]);
 
   const handleCommandSelect = useCallback((command: Command) => {
     const currentTrigger = trigger;
@@ -284,6 +305,18 @@ export const ChatInputArea = forwardRef<ChatInputAreaRef, ChatInputAreaProps>(
 
         {/* Main input container */}
         <div className={`chat-input-container ${isRunning ? 'disabled' : ''}`}>
+          {/* Skill tag */}
+          {pendingSkill && (
+            <div className="skill-tag">
+              <span className="skill-tag-name">{pendingSkill.name}</span>
+              <button className="skill-tag-close" onClick={handleClearSkill} title="Clear skill">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+          )}
+
           {/* Command and Mention menus */}
           {trigger?.type === 'slash' && (
             <CommandMenu

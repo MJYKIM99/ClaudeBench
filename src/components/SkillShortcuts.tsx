@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useAppStore } from '../store/useAppStore';
 import './SkillShortcuts.css';
 
 interface SkillShortcut {
@@ -21,7 +22,7 @@ const SKILL_SHORTCUTS: SkillShortcut[] = [
         <path d="M8 13h8M8 17h5" strokeLinecap="round"/>
       </svg>
     ),
-    prompt: 'Help me organize the files in my current directory. Analyze the file types and create a clean folder structure with meaningful names.',
+    prompt: '/file-organizer Help me organize the files in my current directory. Analyze the file types and create a clean folder structure with meaningful names.',
   },
   {
     id: 'image-processing',
@@ -34,7 +35,7 @@ const SKILL_SHORTCUTS: SkillShortcut[] = [
         <path d="M21 15l-5-5L5 21" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     ),
-    prompt: 'Help me batch process images in my current directory. Convert them to WebP format, compress to 85% quality, and rename them with a consistent naming convention.',
+    prompt: '/image-processor Help me batch process images in my current directory. I want to convert, compress, or rename them.',
   },
   {
     id: 'website-builder',
@@ -49,7 +50,7 @@ const SKILL_SHORTCUTS: SkillShortcut[] = [
         <circle cx="11" cy="6" r="0.5" fill="currentColor"/>
       </svg>
     ),
-    prompt: 'Help me create a modern, responsive website. I want a clean landing page with a hero section, features section, and a footer.',
+    prompt: '/frontend-design Help me create a modern, responsive website. I want a clean landing page with a hero section, features section, and a footer.',
   },
   {
     id: 'research',
@@ -62,7 +63,7 @@ const SKILL_SHORTCUTS: SkillShortcut[] = [
         <path d="M11 8v6M8 11h6" strokeLinecap="round"/>
       </svg>
     ),
-    prompt: 'Help me research and analyze a topic. Gather information from multiple sources and provide a comprehensive summary with key findings.',
+    prompt: '/deep-researcher Help me research and analyze a topic. Gather information from multiple sources and provide a comprehensive summary with key findings.',
   },
   {
     id: 'subtitle-proofreader',
@@ -94,13 +95,21 @@ const SKILL_SHORTCUTS: SkillShortcut[] = [
 ];
 
 interface SkillShortcutsProps {
-  onSelect: (prompt: string) => void;
+  onSelect?: (prompt: string) => void;
 }
 
 export function SkillShortcuts({ onSelect }: SkillShortcutsProps) {
+  const setPendingSkill = useAppStore((s) => s.setPendingSkill);
+
   const handleClick = useCallback((skill: SkillShortcut) => {
-    onSelect(skill.prompt);
-  }, [onSelect]);
+    // Set pending skill with name and prompt
+    setPendingSkill({
+      name: skill.name,
+      prompt: skill.prompt,
+    });
+    // Also call onSelect if provided (for compatibility)
+    onSelect?.(skill.prompt);
+  }, [setPendingSkill, onSelect]);
 
   return (
     <div className="skill-shortcuts">

@@ -201,8 +201,17 @@
   -webkit-app-region: no-drag;
 }
 
-.settings-btn {
-  padding: 7px 14px;
+.footer-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
   background: var(--color-light);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -212,10 +221,29 @@
   transition: all var(--transition-normal);
 }
 
-.settings-btn:hover {
+.footer-btn:hover {
   background: var(--color-light-gray);
   color: var(--color-dark);
   border-color: var(--color-mid-gray);
+}
+
+.footer-btn.skills-btn {
+  background: var(--color-primary-light);
+  border-color: transparent;
+  color: var(--color-primary);
+}
+
+.footer-btn.skills-btn:hover {
+  background: var(--color-primary);
+  color: var(--color-light);
+}
+
+.footer-btn.settings-btn {
+  padding: 7px 10px;
+}
+
+.footer-btn svg {
+  flex-shrink: 0;
 }
 
 .version {
