@@ -176,11 +176,44 @@ interface Attachment {
   size?: number;
 }
 
+// Parameter types for parameterized skills
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
+interface SkillParameter {
+  name: string;
+  type: 'string' | 'number' | 'boolean' | 'select' | 'multiselect' | 'file' | 'text';
+  label: string;
+  description?: string;
+  required?: boolean;
+  default?: string | number | boolean | string[];
+  placeholder?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  options?: SelectOption[];
+  accept?: string;
+  directory?: boolean;
+  rows?: number;
+}
+
 interface SkillInfo {
   name: string;
   description?: string;
   path: string;
   source: 'global' | 'project';
+  category?: string;
+  icon?: string;
+  tags?: string[];
+  author?: string;
+  version?: string;
+  parameters?: SkillParameter[];
+  template?: string;
 }
 
 interface SessionInfo {
@@ -217,10 +250,14 @@ function generateId(): string {
 }
 
 // Skills scanning functions
-function parseSkillMetadata(skillPath: string): { name: string; description?: string } | null {
+function parseSkillMetadata(skillPath: string): SkillInfo | null {
   const skillMdPath = path.join(skillPath, 'SKILL.md');
   if (!fs.existsSync(skillMdPath)) {
-    return { name: path.basename(skillPath) };
+    return {
+      name: path.basename(skillPath),
+      path: skillPath,
+      source: 'global',
+    };
   }
 
   try {
@@ -229,33 +266,159 @@ function parseSkillMetadata(skillPath: string): { name: string; description?: st
 
     let name = path.basename(skillPath);
     let description: string | undefined;
+    let category: string | undefined;
+    let author: string | undefined;
+    let version: string | undefined;
+    let icon: string | undefined;
+    let tags: string[] | undefined;
+    let parameters: SkillParameter[] | undefined;
     let inFrontmatter = false;
+    let inParameters = false;
+    let currentParam: Partial<SkillParameter> | null = null;
+    let inOptions = false;
+    let frontmatterEndLine = 0;
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
       if (line.trim() === '---') {
         if (!inFrontmatter) {
           inFrontmatter = true;
           continue;
         } else {
+          frontmatterEndLine = i;
+          // Save last parameter if exists
+          if (currentParam && currentParam.name && currentParam.type) {
+            if (!parameters) parameters = [];
+            parameters.push(currentParam as SkillParameter);
+          }
           break;
         }
       }
 
       if (inFrontmatter) {
-        const nameMatch = line.match(/^name:\s*(.+)$/);
-        if (nameMatch) {
-          name = nameMatch[1].trim().replace(/^["']|["']$/g, '');
+        // Check for parameters array start
+        if (line.match(/^parameters:\s*$/)) {
+          inParameters = true;
+          parameters = [];
+          continue;
         }
-        const descMatch = line.match(/^description:\s*(.+)$/);
-        if (descMatch) {
-          description = descMatch[1].trim().replace(/^["']|["']$/g, '');
+
+        // Inside parameters array
+        if (inParameters) {
+          // New parameter item (starts with "  - ")
+          if (line.match(/^\s{2}-\s+name:\s*(.+)$/)) {
+            // Save previous parameter
+            if (currentParam && currentParam.name && currentParam.type) {
+              parameters!.push(currentParam as SkillParameter);
+            }
+            currentParam = { name: line.match(/^\s{2}-\s+name:\s*(.+)$/)![1].trim().replace(/^["']|["']$/g, '') };
+            inOptions = false;
+            continue;
+          }
+
+          // Parameter properties (indented with 4+ spaces)
+          if (currentParam && line.match(/^\s{4,}\w/)) {
+            // Check for options array
+            if (line.match(/^\s{4}options:\s*$/)) {
+              inOptions = true;
+              currentParam.options = [];
+              continue;
+            }
+
+            // Option items
+            if (inOptions && line.match(/^\s{6}-\s*\{/)) {
+              const optMatch = line.match(/value:\s*["']?([^"',}]+)["']?.*label:\s*["']?([^"'}]+)["']?/);
+              if (optMatch && currentParam.options) {
+                currentParam.options.push({ value: optMatch[1].trim(), label: optMatch[2].trim() });
+              }
+              continue;
+            }
+
+            // Regular property
+            if (!inOptions || !line.match(/^\s{6}/)) {
+              inOptions = false;
+              const propMatch = line.match(/^\s{4}(\w+):\s*(.+)$/);
+              if (propMatch) {
+                const [, key, rawValue] = propMatch;
+                let value: string | number | boolean = rawValue.trim().replace(/^["']|["']$/g, '');
+
+                // Type coercion
+                if (value === 'true') value = true;
+                else if (value === 'false') value = false;
+                else if (!isNaN(Number(value)) && value !== '') value = Number(value);
+
+                (currentParam as Record<string, unknown>)[key] = value;
+              }
+            }
+            continue;
+          }
+
+          // Exit parameters section if we hit a non-indented line
+          if (!line.match(/^\s/) && line.trim() !== '') {
+            inParameters = false;
+            // Save last parameter
+            if (currentParam && currentParam.name && currentParam.type) {
+              parameters!.push(currentParam as SkillParameter);
+            }
+            currentParam = null;
+          }
+        }
+
+        // Regular frontmatter fields
+        if (!inParameters) {
+          const nameMatch = line.match(/^name:\s*(.+)$/);
+          if (nameMatch) {
+            name = nameMatch[1].trim().replace(/^["']|["']$/g, '');
+          }
+          const descMatch = line.match(/^description:\s*(.+)$/);
+          if (descMatch) {
+            description = descMatch[1].trim().replace(/^["']|["']$/g, '');
+          }
+          const catMatch = line.match(/^category:\s*(.+)$/);
+          if (catMatch) {
+            category = catMatch[1].trim().replace(/^["']|["']$/g, '');
+          }
+          const authorMatch = line.match(/^author:\s*(.+)$/);
+          if (authorMatch) {
+            author = authorMatch[1].trim().replace(/^["']|["']$/g, '');
+          }
+          const versionMatch = line.match(/^version:\s*(.+)$/);
+          if (versionMatch) {
+            version = versionMatch[1].trim().replace(/^["']|["']$/g, '');
+          }
+          const iconMatch = line.match(/^icon:\s*(.+)$/);
+          if (iconMatch) {
+            icon = iconMatch[1].trim().replace(/^["']|["']$/g, '');
+          }
+          const tagsMatch = line.match(/^tags:\s*\[(.+)\]$/);
+          if (tagsMatch) {
+            tags = tagsMatch[1].split(',').map(t => t.trim().replace(/^["']|["']$/g, ''));
+          }
         }
       }
     }
 
-    return { name, description };
+    // Extract template (content after frontmatter)
+    const template = frontmatterEndLine > 0
+      ? lines.slice(frontmatterEndLine + 1).join('\n').trim()
+      : undefined;
+
+    return {
+      name,
+      description,
+      path: skillPath,
+      source: 'global',
+      category,
+      author,
+      version,
+      icon,
+      tags,
+      parameters: parameters && parameters.length > 0 ? parameters : undefined,
+      template,
+    };
   } catch {
-    return { name: path.basename(skillPath) };
+    return { name: path.basename(skillPath), path: skillPath, source: 'global' };
   }
 }
 
@@ -276,8 +439,7 @@ function scanSkillsDirectory(dirPath: string, source: 'global' | 'project'): Ski
 
         if (metadata) {
           skills.push({
-            name: metadata.name,
-            description: metadata.description,
+            ...metadata,
             path: skillPath,
             source,
           });
@@ -289,6 +451,149 @@ function scanSkillsDirectory(dirPath: string, source: 'global' | 'project'): Ski
   }
 
   return skills;
+}
+
+// Expand skill template with parameter values
+function expandSkillTemplate(template: string, values: Record<string, unknown>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(values)) {
+    const placeholder = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
+    const stringValue = Array.isArray(value) ? value.join(', ') : String(value);
+    result = result.replace(placeholder, stringValue);
+  }
+  return result;
+}
+
+// Validate parameter values against schema
+function validateSkillParameters(
+  parameters: SkillParameter[],
+  values: Record<string, unknown>
+): { valid: boolean; errors: Array<{ name: string; message: string }> } {
+  const errors: Array<{ name: string; message: string }> = [];
+
+  for (const param of parameters) {
+    const value = values[param.name];
+
+    // Required check
+    if (param.required && (value === undefined || value === null || value === '')) {
+      errors.push({ name: param.name, message: `${param.label} is required` });
+      continue;
+    }
+
+    // Skip validation if not required and empty
+    if (value === undefined || value === null || value === '') {
+      continue;
+    }
+
+    // Type-specific validation
+    switch (param.type) {
+      case 'number': {
+        const numValue = Number(value);
+        if (isNaN(numValue)) {
+          errors.push({ name: param.name, message: `${param.label} must be a number` });
+        } else {
+          if (param.min !== undefined && numValue < param.min) {
+            errors.push({ name: param.name, message: `${param.label} must be at least ${param.min}` });
+          }
+          if (param.max !== undefined && numValue > param.max) {
+            errors.push({ name: param.name, message: `${param.label} must be at most ${param.max}` });
+          }
+        }
+        break;
+      }
+      case 'string':
+      case 'text': {
+        const strValue = String(value);
+        if (param.minLength !== undefined && strValue.length < param.minLength) {
+          errors.push({ name: param.name, message: `${param.label} must be at least ${param.minLength} characters` });
+        }
+        if (param.maxLength !== undefined && strValue.length > param.maxLength) {
+          errors.push({ name: param.name, message: `${param.label} must be at most ${param.maxLength} characters` });
+        }
+        if (param.pattern) {
+          const regex = new RegExp(param.pattern);
+          if (!regex.test(strValue)) {
+            errors.push({ name: param.name, message: `${param.label} format is invalid` });
+          }
+        }
+        break;
+      }
+      case 'select': {
+        if (param.options && !param.options.some(opt => opt.value === value)) {
+          errors.push({ name: param.name, message: `Invalid selection for ${param.label}` });
+        }
+        break;
+      }
+      case 'multiselect': {
+        if (Array.isArray(value) && param.options) {
+          const validValues = param.options.map(opt => opt.value);
+          for (const v of value) {
+            if (!validValues.includes(v)) {
+              errors.push({ name: param.name, message: `Invalid selection "${v}" for ${param.label}` });
+            }
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+// Handle skill expand request
+function handleSkillExpand(payload: Record<string, unknown>): void {
+  const skillPath = payload.path as string;
+  const values = payload.values as Record<string, unknown>;
+
+  if (!skillPath) {
+    send({ type: 'runner.error', payload: { message: 'No skill path provided' } });
+    return;
+  }
+
+  const skillMdPath = path.join(skillPath, 'SKILL.md');
+  if (!fs.existsSync(skillMdPath)) {
+    send({ type: 'runner.error', payload: { message: 'Skill file not found' } });
+    return;
+  }
+
+  try {
+    const metadata = parseSkillMetadata(skillPath);
+    if (!metadata) {
+      send({ type: 'runner.error', payload: { message: 'Failed to parse skill metadata' } });
+      return;
+    }
+
+    // Validate parameters if skill has them
+    if (metadata.parameters && metadata.parameters.length > 0) {
+      const validation = validateSkillParameters(metadata.parameters, values || {});
+      if (!validation.valid) {
+        send({
+          type: 'skills.validation',
+          payload: { valid: false, errors: validation.errors },
+        });
+        return;
+      }
+    }
+
+    // Expand template with values
+    let expandedPrompt = metadata.template || '';
+    if (values && Object.keys(values).length > 0) {
+      expandedPrompt = expandSkillTemplate(expandedPrompt, values);
+    }
+
+    send({
+      type: 'skills.expanded',
+      payload: {
+        name: metadata.name,
+        expandedPrompt,
+        parameterValues: values || {},
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to expand skill';
+    send({ type: 'runner.error', payload: { message } });
+  }
 }
 
 function getAllSkills(projectCwd?: string): SkillInfo[] {
@@ -1008,6 +1313,9 @@ async function handleMessage(line: string): Promise<void> {
         break;
       case 'skills.open':
         handleSkillsOpen(event.payload || {});
+        break;
+      case 'skills.expand':
+        handleSkillExpand(event.payload || {});
         break;
       case 'skills.openReferenceFolder':
         handleOpenReferenceFolder(event.payload || {});

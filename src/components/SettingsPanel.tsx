@@ -209,7 +209,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <AppIcon size={56} />
               <div className="about-title">
                 <h4>ClaudeBench</h4>
-                <span className="version-badge">v0.1.3</span>
+                <span className="version-badge">v0.1.5</span>
               </div>
             </div>
             <p className="about-description">

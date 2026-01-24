@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { SkillCard } from './SkillCard';
 import { SkillManager } from './SkillManager';
+import { SkillUseModal } from './SkillUseModal';
+import type { SkillInfo } from '../../types';
 import './SkillsPage.css';
 
 interface SkillsPageProps {
@@ -17,6 +19,7 @@ export function SkillsPage({ onClose, onUseSkill }: SkillsPageProps) {
 
   const [showManager, setShowManager] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null);
 
   // Load skills on mount
   useEffect(() => {
@@ -34,15 +37,31 @@ export function SkillsPage({ onClose, onUseSkill }: SkillsPageProps) {
     );
   }, [skills, searchQuery]);
 
-  const handleUseSkill = useCallback((skill: typeof skills[0]) => {
-    // Set pending skill with name and prompt
+  const handleSkillClick = useCallback((skill: SkillInfo) => {
+    // If skill has parameters, show modal; otherwise use directly
+    if (skill.parameters && skill.parameters.length > 0) {
+      setSelectedSkill(skill);
+    } else {
+      // No parameters - use skill directly
+      setPendingSkill({
+        name: skill.name,
+        prompt: `/${skill.name} `,
+      });
+      onUseSkill();
+      onClose();
+    }
+  }, [setPendingSkill, onUseSkill, onClose]);
+
+  const handleUseSkillWithParams = useCallback((expandedPrompt: string) => {
+    if (!selectedSkill) return;
     setPendingSkill({
-      name: skill.name,
-      prompt: `/${skill.name} `,
+      name: selectedSkill.name,
+      prompt: expandedPrompt,
     });
+    setSelectedSkill(null);
     onUseSkill();
     onClose();
-  }, [setPendingSkill, onUseSkill, onClose]);
+  }, [selectedSkill, setPendingSkill, onUseSkill, onClose]);
 
   const handleRefresh = () => {
     setSkillsLoading(true);
@@ -125,12 +144,21 @@ export function SkillsPage({ onClose, onUseSkill }: SkillsPageProps) {
               <SkillCard
                 key={skill.path}
                 skill={skill}
-                onUse={() => handleUseSkill(skill)}
+                onUse={() => handleSkillClick(skill)}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Parameter modal */}
+      {selectedSkill && (
+        <SkillUseModal
+          skill={selectedSkill}
+          onClose={() => setSelectedSkill(null)}
+          onUse={handleUseSkillWithParams}
+        />
+      )}
     </div>
   );
 }

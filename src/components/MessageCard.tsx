@@ -1,10 +1,12 @@
 import { Component, ReactNode, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Eye, Copy, Check } from 'lucide-react';
 import { TextShimmer } from './tool-display';
 import { revealInFinder } from '../utils/pathUtils';
 import { saveArtifact } from '../utils/fileUtils';
 import { useAppStore } from '../store/useAppStore';
+import type { Artifact } from './artifacts';
 import type { StreamMessage, AssistantMessage, UserMessage, ResultMessage, SystemMessage, ToolUseContent, ToolResultContent } from '../types';
 import './MessageCard.css';
 
@@ -174,12 +176,58 @@ function SystemCard({ message, showIndicator }: { message: SystemMessage; showIn
   );
 }
 
+// Extract previewable artifacts from tool_use blocks
+function extractPreviewableArtifacts(content: any[]): Array<{ title: string; type: Artifact['type']; language: string; content: string }> {
+  const artifacts: Array<{ title: string; type: Artifact['type']; language: string; content: string }> = [];
+
+  for (const block of content) {
+    if (block?.type === 'tool_use' && block?.name === 'Write') {
+      const input = block.input as Record<string, any>;
+      const filePath = input?.file_path as string || '';
+      const fileContent = input?.content as string || '';
+
+      if (!filePath || !fileContent) continue;
+
+      const ext = filePath.split('.').pop()?.toLowerCase();
+      let previewType: Artifact['type'] | null = null;
+
+      // HTML files
+      if (ext === 'html' || ext === 'htm') previewType = 'html';
+      else if (ext === 'svg') previewType = 'html';
+      // Mermaid diagrams
+      else if (ext === 'mmd' || filePath.includes('mermaid')) previewType = 'mermaid';
+      // Markdown files
+      else if (ext === 'md' || ext === 'markdown') previewType = 'markdown';
+      // CSV files
+      else if (ext === 'csv') previewType = 'csv';
+      // Image files (base64 data URLs or file paths)
+      else if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(ext || '')) previewType = 'image';
+      // Check content for HTML
+      else if (fileContent.trim().startsWith('<!DOCTYPE') || fileContent.trim().startsWith('<html')) previewType = 'html';
+
+      if (previewType) {
+        artifacts.push({
+          title: filePath.split('/').pop() || filePath,
+          type: previewType,
+          language: ext || previewType,
+          content: fileContent,
+        });
+      }
+    }
+  }
+
+  return artifacts;
+}
+
 function AssistantCard({ message, showIndicator }: { message: AssistantMessage; showIndicator?: boolean }) {
   const content = message?.message?.content;
 
   if (!content || !Array.isArray(content)) {
     return null;
   }
+
+  // Extract previewable artifacts for display at the end
+  const previewableArtifacts = !showIndicator ? extractPreviewableArtifacts(content) : [];
 
   return (
     <>
@@ -201,6 +249,9 @@ function AssistantCard({ message, showIndicator }: { message: AssistantMessage; 
 
         return null;
       })}
+      {previewableArtifacts.length > 0 && (
+        <PreviewableArtifactsCard artifacts={previewableArtifacts} />
+      )}
     </>
   );
 }
@@ -272,6 +323,8 @@ function TextBlock({ text, showIndicator }: { text: string; showIndicator?: bool
 }
 
 function MarkdownBlock({ text }: { text: string }) {
+  const setPreviewArtifact = useAppStore((s) => s.setPreviewArtifact);
+
   if (!text) return null;
 
   const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -292,12 +345,132 @@ function MarkdownBlock({ text }: { text: string }) {
     }
   }, []);
 
+  const handlePreview = useCallback((language: string, code: string) => {
+    let type: Artifact['type'] = 'code';
+    if (language === 'html' || language === 'svg') {
+      type = 'html';
+    } else if (language === 'mermaid') {
+      type = 'mermaid';
+    }
+    setPreviewArtifact({ type, language, content: code });
+  }, [setPreviewArtifact]);
+
   return (
     <div className="markdown-block" onClick={handleClick}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          pre: ({ children }) => <>{children}</>,
+          code: ({ className, children, ...props }) => {
+            const match = /language-(\w+)/.exec(className || '');
+            const language = match ? match[1] : '';
+            const code = String(children).replace(/\n$/, '');
+            const isBlock = className?.includes('language-');
+            const isPreviewable = ['html', 'svg', 'mermaid'].includes(language);
+
+            if (isBlock) {
+              return (
+                <div className="code-block-wrapper">
+                  <div className="code-block-header">
+                    <span className="code-block-lang">{language || 'code'}</span>
+                    <div className="code-block-actions">
+                      {isPreviewable && (
+                        <button
+                          className="code-action-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePreview(language, code);
+                          }}
+                          title="Preview"
+                        >
+                          <Eye size={14} />
+                        </button>
+                      )}
+                      <CopyButton code={code} />
+                    </div>
+                  </div>
+                  <pre className="code-block-content">
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  </pre>
+                </div>
+              );
+            }
+
+            return (
+              <code className={className} {...props}>
+                {children}
+              </code>
+            );
+          },
+        }}
+      >
         {text}
       </ReactMarkdown>
     </div>
+  );
+}
+
+// Previewable artifacts card - shown at end of assistant message
+function PreviewableArtifactsCard({ artifacts }: { artifacts: Array<{ title: string; type: Artifact['type']; language: string; content: string }> }) {
+  const setPreviewArtifact = useAppStore((s) => s.setPreviewArtifact);
+
+  const handlePreview = useCallback((artifact: { title: string; type: Artifact['type']; language: string; content: string }) => {
+    setPreviewArtifact({
+      type: artifact.type,
+      language: artifact.language,
+      content: artifact.content,
+      title: artifact.title,
+    });
+  }, [setPreviewArtifact]);
+
+  return (
+    <div className="message-card preview-artifacts-card">
+      <div className="preview-artifacts-header">
+        <Eye size={14} />
+        <span>Preview Available</span>
+      </div>
+      <div className="preview-artifacts-list">
+        {artifacts.map((artifact, index) => (
+          <button
+            key={index}
+            className="preview-artifact-item"
+            onClick={() => handlePreview(artifact)}
+          >
+            <span className="preview-artifact-icon">
+              {artifact.type === 'html' ? '🌐' : artifact.type === 'mermaid' ? '📊' : '📄'}
+            </span>
+            <span className="preview-artifact-title">{artifact.title}</span>
+            <span className="preview-artifact-action">
+              <Eye size={14} />
+              Preview
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CopyButton({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  }, [code]);
+
+  return (
+    <button className="code-action-btn" onClick={handleCopy} title="Copy code">
+      {copied ? <Check size={14} /> : <Copy size={14} />}
+    </button>
   );
 }
 

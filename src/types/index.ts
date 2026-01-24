@@ -152,6 +152,7 @@ export type ClientEvent =
   | { type: 'skills.install'; payload: { url: string } }
   | { type: 'skills.delete'; payload: { path: string } }
   | { type: 'skills.open'; payload: { path: string } }
+  | { type: 'skills.expand'; payload: { path: string; values: SkillParameterValues } }
   | { type: 'skills.openReferenceFolder'; payload?: { path?: string } }
   | { type: 'skills.installBundled' }
   | { type: 'env.check' };
@@ -209,6 +210,42 @@ export type SkillCategory =
   | 'development'
   | 'other';
 
+// Parameter types for parameterized skills
+export type SkillParameterType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'select'
+  | 'multiselect'
+  | 'file'
+  | 'text';
+
+export interface SelectOption {
+  value: string;
+  label: string;
+}
+
+export interface SkillParameter {
+  name: string;
+  type: SkillParameterType;
+  label: string;
+  description?: string;
+  required?: boolean;
+  default?: string | number | boolean | string[];
+  placeholder?: string;
+  // Type-specific validation
+  min?: number;
+  max?: number;
+  step?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  options?: SelectOption[];
+  accept?: string;
+  directory?: boolean;
+  rows?: number;
+}
+
 export interface SkillInfo {
   name: string;
   description?: string;
@@ -220,6 +257,30 @@ export interface SkillInfo {
   author?: string;
   version?: string;
   enabled?: boolean;
+  // Parameterization support
+  parameters?: SkillParameter[];
+  template?: string; // The skill content with {{param}} placeholders
+}
+
+// Parameter values map
+export type SkillParameterValues = Record<string, string | number | boolean | string[]>;
+
+// Validation result
+export interface ParameterValidationError {
+  name: string;
+  message: string;
+}
+
+export interface SkillValidationResult {
+  valid: boolean;
+  errors: ParameterValidationError[];
+}
+
+// Expanded skill ready for use
+export interface ExpandedSkill {
+  name: string;
+  expandedPrompt: string;
+  parameterValues: SkillParameterValues;
 }
 
 export const SKILL_CATEGORIES: Record<SkillCategory, { name: string; iconType: string; color: string }> = {

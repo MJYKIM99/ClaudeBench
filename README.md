@@ -44,6 +44,8 @@ ClaudeBench is a native desktop GUI for [Claude Code](https://docs.anthropic.com
 | **Permission Control** | Interactive UI for tool permissions and user confirmations |
 | **Settings Integration** | Auto-reads your `~/.claude/settings.json` configuration |
 | **File Attachments** | Drag & drop files directly into conversations |
+| **Artifact Preview** | Split-screen preview for HTML, SVG, Mermaid diagrams, Markdown, CSV, and images with zoom/pan support |
+| **Skills System** | Browse and use Claude skills from `~/.claude/skills` directory |
 
 ### Prerequisites
 
@@ -155,6 +157,8 @@ ClaudeBench 是一个原生 macOS 桌面应用，用于与 [Claude Code](https:/
 | **权限控制** | 交互式 UI 管理工具权限 |
 | **配置集成** | 自动读取 `~/.claude/settings.json` |
 | **文件附件** | 拖放文件直接加入对话 |
+| **Artifact 预览** | 分屏预览 HTML、SVG、Mermaid 图表、Markdown、CSV 和图片，支持缩放平移 |
+| **Skills 系统** | 浏览和使用 `~/.claude/skills` 目录中的 Claude 技能 |
 
 ### 系统要求
 
@@ -211,6 +215,7 @@ npm run tauri build
 
 | Version | Date | Changes |
 |---------|------|---------|
+| **v0.1.5** | 2026-01-25 | Artifact Preview System: Split-screen preview panel for HTML, SVG, Mermaid diagrams, Markdown, CSV tables with search/sort/column selection, and images; Mermaid diagrams with zoom/pan and crisp vector scaling; CSV preview with column selection and copy; Improved SVG centering |
 | **v0.1.4** | 2026-01-23 | Auto-generate session titles using AI after first conversation turn; Skills system with first-launch setup and improved UX |
 | **v0.1.3** | 2026-01-21 | Improved window drag region for macOS; Simplified About section in Settings; Fixed app icon display in About page |
 | **v0.1.2** | 2026-01-20 | Fix production build: Replace better-sqlite3 (native module) with sql.js (pure JS) for fully self-contained sidecar bundle; Bundle all dependencies including Claude Agent SDK |

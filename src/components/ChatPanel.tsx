@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import { MessageSquare, Folder, Info } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { MessageCard } from './MessageCard';
 import { DecisionPanel } from './DecisionPanel';
@@ -112,7 +113,9 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
     return (
       <div className="chat-panel">
         <div className="chat-empty">
-          <div className="chat-empty-icon">💬</div>
+          <div className="chat-empty-icon">
+            <MessageSquare size={48} strokeWidth={1.5} />
+          </div>
           <h3>No Session Selected</h3>
           <p>Create a new session or select one from the sidebar</p>
         </div>
@@ -131,7 +134,8 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
               title={`${session.cwd} (Click to open in Finder)`}
               onClick={() => revealInFinder(session.cwd!)}
             >
-              📁 {session.cwd}
+              <Folder size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              {session.cwd}
             </span>
           )}
         </div>
@@ -145,7 +149,7 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
               onClick={() => setShowInfo(!showInfo)}
               title="Session Info"
             >
-              ⓘ
+              <Info size={14} />
             </button>
           )}
         </div>

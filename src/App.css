@@ -37,6 +37,14 @@
   --color-tool-success: #788c5d;
   --color-tool-error: #c45a4a;
 
+  /* Semantic Status Colors */
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-info: #3b82f6;
+  --color-hover: rgba(0, 0, 0, 0.05);
+  --color-primary-alpha: rgba(217, 119, 87, 0.2);
+  --color-primary-dark: #b85a3d;
+
   /* Typography - Anthropic Brand Fonts */
   --font-heading: 'Poppins', Arial, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-body: 'Lora', Georgia, 'Times New Roman', serif;
@@ -97,18 +105,54 @@ body {
   position: relative;
 }
 
+/* Content area for split-screen layout */
+.content-area {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 360px;
+  transition: flex var(--transition-normal);
+}
+
+.main-content.with-preview .chat-area {
+  flex: 1 1 45%;
+}
+
+.preview-area {
+  flex: 1 1 55%;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
+  animation: slideInRight 0.2s ease-out;
+  overflow: hidden;
+  min-width: 400px;
+  max-width: 65%;
+}
+
 /* Titlebar drag region for main content - real DOM element for Tauri compatibility */
 .titlebar-drag-region {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
   height: 52px;
   -webkit-app-region: drag;
   z-index: 1000;
   pointer-events: auto;
-  /* Debug: uncomment to see the drag region */
-  /* background: rgba(255, 0, 0, 0.1); */
+  /* Only cover chat area, not preview area */
+  right: 0;
+}
+
+.main-content.with-preview .titlebar-drag-region {
+  /* When preview is open, don't cover the preview area */
+  right: 55%;
 }
 
 /* Utility Classes */

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { Folder, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { revealInFinder } from '../utils/pathUtils';
 import type { SessionView } from '../types';
@@ -190,7 +191,7 @@ export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings, onOpenS
             </svg>
           </button>
         </div>
-        <span className="version">v0.1.4</span>
+        <span className="version">v0.1.5</span>
       </div>
 
       {/* Context Menu */}
@@ -202,12 +203,12 @@ export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings, onOpenS
         >
           {contextMenu.sessionCwd && (
             <button className="context-menu-item" onClick={handleOpenInFinder}>
-              <span className="context-menu-icon">📁</span>
+              <Folder size={14} className="context-menu-icon" />
               Open in Finder
             </button>
           )}
           <button className="context-menu-item danger" onClick={handleDeleteFromMenu}>
-            <span className="context-menu-icon">🗑</span>
+            <Trash2 size={14} className="context-menu-icon" />
             Delete Session
           </button>
         </div>

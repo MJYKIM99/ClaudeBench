@@ -8,6 +8,7 @@ import { WelcomeView } from './components/WelcomeView';
 import { SettingsPanel } from './components/SettingsPanel';
 import { SkillsPage } from './components/skills';
 import { SetupDialog } from './components/SetupDialog';
+import { ArtifactPreview } from './components/artifacts';
 import { useSidecar } from './hooks/useSidecar';
 import { useAppStore } from './store/useAppStore';
 import type { PermissionResult } from './types';
@@ -113,14 +114,16 @@ function App() {
     return () => window.removeEventListener('message', handleMessage);
   }, [send]);
 
+  // Close skills page when user selects a session
+  useEffect(() => {
+    if (activeSessionId && showSkills) {
+      setShowSkills(false);
+    }
+  }, [activeSessionId, showSkills]);
+
   // Auto-load session history when switching sessions
   useEffect(() => {
     if (!activeSessionId) return;
-
-    // Close skills page when user selects a session
-    if (showSkills) {
-      setShowSkills(false);
-    }
 
     const session = sessions[activeSessionId];
     const { historyRequested, markHistoryRequested } = useAppStore.getState();
@@ -268,6 +271,10 @@ function App() {
     return userMessages.length === 0;
   }, [activeSession]);
 
+  // Preview panel state
+  const previewArtifact = useAppStore((s) => s.previewArtifact);
+  const setPreviewArtifact = useAppStore((s) => s.setPreviewArtifact);
+
   return (
     <div className="app">
       <Sidebar
@@ -277,25 +284,37 @@ function App() {
         onOpenSkills={handleOpenSkills}
       />
 
-      <main className="main-content">
+      <main className={`main-content ${previewArtifact ? 'with-preview' : ''}`}>
         <div
           className="titlebar-drag-region"
           data-tauri-drag-region="true"
           onMouseDown={(e) => e.stopPropagation()}
         />
-        {showSkills ? (
-          <SkillsPage onClose={handleCloseSkills} onUseSkill={handleUseSkill} />
-        ) : showWelcome ? (
-          <WelcomeView onSend={handleSendMessage} onStop={handleStopSession} />
-        ) : (
-          <>
-            <ChatPanel onPermissionResponse={handlePermissionResponse} />
-            <ChatInputArea
-              onSend={handleSendMessage}
-              onStop={handleStopSession}
-            />
-          </>
-        )}
+        <div className="content-area">
+          <div className="chat-area">
+            {showSkills ? (
+              <SkillsPage onClose={handleCloseSkills} onUseSkill={handleUseSkill} />
+            ) : showWelcome ? (
+              <WelcomeView onSend={handleSendMessage} onStop={handleStopSession} />
+            ) : (
+              <>
+                <ChatPanel onPermissionResponse={handlePermissionResponse} />
+                <ChatInputArea
+                  onSend={handleSendMessage}
+                  onStop={handleStopSession}
+                />
+              </>
+            )}
+          </div>
+          {previewArtifact && (
+            <div className="preview-area">
+              <ArtifactPreview
+                artifact={previewArtifact}
+                onClose={() => setPreviewArtifact(null)}
+              />
+            </div>
+          )}
+        </div>
       </main>
 
       {showSettings && (

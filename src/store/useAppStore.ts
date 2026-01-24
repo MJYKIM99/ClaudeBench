@@ -6,6 +6,13 @@ interface PendingSkill {
   prompt: string;
 }
 
+interface PreviewArtifact {
+  type: 'html' | 'mermaid' | 'code' | 'image' | 'markdown' | 'csv';
+  language?: string;
+  content: string;
+  title?: string;
+}
+
 interface AppState {
   sessions: Record<string, SessionView>;
   activeSessionId: string | null;
@@ -28,6 +35,9 @@ interface AppState {
   model: string;
   attachments: Attachment[];
 
+  // Preview state
+  previewArtifact: PreviewArtifact | null;
+
   setPrompt: (prompt: string) => void;
   setCwd: (cwd: string) => void;
   setPendingStart: (pending: boolean) => void;
@@ -47,6 +57,9 @@ interface AppState {
   setSkillsLoading: (loading: boolean) => void;
   setShowCwdPrompt: (show: boolean) => void;
   setPendingSkill: (skill: PendingSkill | null) => void;
+
+  // Preview actions
+  setPreviewArtifact: (artifact: PreviewArtifact | null) => void;
 }
 
 function createSession(id: string): SessionView {
@@ -82,6 +95,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   model: 'sonnet',
   attachments: [],
 
+  // Preview state
+  previewArtifact: null,
+
   setPrompt: (prompt) => set({ prompt }),
   setCwd: (cwd) => set({ cwd }),
   setPendingStart: (pendingStart) => set({ pendingStart }),
@@ -100,6 +116,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSkillsLoading: (skillsLoading) => set({ skillsLoading }),
   setShowCwdPrompt: (showCwdPrompt) => set({ showCwdPrompt }),
   setPendingSkill: (pendingSkill) => set({ pendingSkill }),
+
+  // Preview actions
+  setPreviewArtifact: (previewArtifact) => set({ previewArtifact }),
 
   markHistoryRequested: (sessionId) => {
     set((state) => {
