@@ -1,0 +1,56 @@
+@import 'tailwindcss';
+
+/* Custom CSS variables for design tokens */
+@theme {
+  /* Anthropic Brand Colors */
+  --color-primary: #d97757;
+  --color-primary-hover: #c4664a;
+  --color-primary-light: rgba(217, 119, 87, 0.12);
+  --color-secondary: #6a9bcc;
+  --color-tertiary: #788c5d;
+  --color-success: #788c5d;
+
+  /* Brand Neutrals */
+  --color-dark: #141413;
+  --color-light: #faf9f5;
+  --color-mid-gray: #b0aea5;
+  --color-light-gray: #e8e6dc;
+
+  /* Semantic Colors */
+  --color-background: #faf9f5;
+  --color-surface: #ffffff;
+  --color-border: #e8e6dc;
+  --color-text: #141413;
+  --color-text-secondary: #6b6a66;
+  --color-text-muted: #b0aea5;
+
+  /* UX Mode Colors */
+  --color-agent-mode: #141413;
+  --color-plan-mode: #d97757;
+  --color-tool-running: #6a9bcc;
+  --color-tool-success: #788c5d;
+  --color-tool-error: #c45a4a;
+
+  /* Status Colors */
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-info: #3b82f6;
+
+  /* Spacing & Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(20, 20, 19, 0.04);
+  --shadow-md: 0 4px 12px rgba(20, 20, 19, 0.06);
+  --shadow-lg: 0 8px 24px rgba(20, 20, 19, 0.08);
+  --shadow-glow: 0 0 20px rgba(217, 119, 87, 0.15);
+
+  /* Animation Timings */
+  --transition-fast: 0.12s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}

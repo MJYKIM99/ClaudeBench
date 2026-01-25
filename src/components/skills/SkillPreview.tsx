@@ -1,60 +1,68 @@
-import { useMemo } from 'react';
-import type { SkillParameterValues } from '../../types';
 import './SkillPreview.css';
+
+import type { SkillParameterValues } from '../../types';
 
 interface SkillPreviewProps {
   template: string;
   values: SkillParameterValues;
-  maxHeight?: number;
 }
 
-export function SkillPreview({ template, values, maxHeight = 200 }: SkillPreviewProps) {
-  const expandedContent = useMemo(() => {
-    let result = template;
-    for (const [key, value] of Object.entries(values)) {
-      const placeholder = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');
-      const stringValue = Array.isArray(value) ? value.join(', ') : String(value ?? '');
-      result = result.replace(placeholder, stringValue);
-    }
-    return result;
-  }, [template, values]);
+export function SkillPreview({ template, values }: SkillPreviewProps) {
+  // Expand template with current values, highlighting placeholders
+  const renderTemplate = () => {
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    const regex = /\{\{\s*(\w+)\s*\}\}/g;
+    let match;
 
-  // Find remaining placeholders that weren't filled
-  const remainingPlaceholders = useMemo(() => {
-    const matches = expandedContent.match(/\{\{\s*\w+\s*\}\}/g);
-    return matches ? [...new Set(matches)] : [];
-  }, [expandedContent]);
-
-  // Highlight placeholders in the preview
-  const highlightedContent = useMemo(() => {
-    let html = expandedContent
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-
-    // Highlight remaining placeholders in yellow
-    html = html.replace(
-      /\{\{\s*(\w+)\s*\}\}/g,
-      '<span class="placeholder-unfilled">{{$1}}</span>'
-    );
-
-    return html;
-  }, [expandedContent]);
-
-  return (
-    <div className="skill-preview">
-      <div className="preview-header">
-        <span className="preview-title">Preview</span>
-        {remainingPlaceholders.length > 0 && (
-          <span className="preview-warning">
-            {remainingPlaceholders.length} unfilled parameter{remainingPlaceholders.length > 1 ? 's' : ''}
+    while ((match = regex.exec(template)) !== null) {
+      // Add text before the placeholder
+      if (match.index > lastIndex) {
+        parts.push(
+          <span key={`text-${lastIndex}`} className="preview-text">
+            {template.slice(lastIndex, match.index)}
           </span>
-        )}
-      </div>
-      <div
-        className="preview-content"
-        style={{ maxHeight }}
-        dangerouslySetInnerHTML={{ __html: highlightedContent }}
-      />
-    </div>
-  );
+        );
+      }
+
+      const paramName = match[1];
+      const value = values[paramName];
+      const displayValue = Array.isArray(value)
+        ? value.join(', ')
+        : value !== undefined && value !== null && value !== ''
+          ? String(value)
+          : null;
+
+      if (displayValue) {
+        // Show the filled value
+        parts.push(
+          <span key={`value-${match.index}`} className="preview-value">
+            {displayValue}
+          </span>
+        );
+      } else {
+        // Show the placeholder
+        parts.push(
+          <span key={`placeholder-${match.index}`} className="preview-placeholder">
+            {`{{${paramName}}}`}
+          </span>
+        );
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text
+    if (lastIndex < template.length) {
+      parts.push(
+        <span key={`text-${lastIndex}`} className="preview-text">
+          {template.slice(lastIndex)}
+        </span>
+      );
+    }
+
+    return parts;
+  };
+
+  return <div className="skill-preview">{renderTemplate()}</div>;
 }
