@@ -31,7 +31,7 @@ interface TriggerState {
 }
 
 interface ChatInputAreaProps {
-  onSend: (prompt: string) => void;
+  onSend: (prompt: string) => boolean | void;
   onStop: () => void;
   showRepoSelector?: boolean;
 }
@@ -54,6 +54,8 @@ export const ChatInputArea = forwardRef<ChatInputAreaRef, ChatInputAreaProps>(
     const mode = useAppStore((s) => s.mode);
     const model = useAppStore((s) => s.model);
     const attachments = useAppStore((s) => s.attachments);
+    const pendingInput = useAppStore((s) => s.pendingInput);
+    const setPendingInput = useAppStore((s) => s.setPendingInput);
     const setMode = useAppStore((s) => s.setMode);
     const setModel = useAppStore((s) => s.setModel);
     const addAttachment = useAppStore((s) => s.addAttachment);
@@ -80,23 +82,45 @@ export const ChatInputArea = forwardRef<ChatInputAreaRef, ChatInputAreaProps>(
       return () => clearTimeout(timer);
     }, [pendingSkill]);
 
+    // Restore pending input when switching to welcome page (no active session)
+    // Use a ref to track if we've restored to avoid the ESLint warning
+    const hasRestoredRef = useRef(false);
+    useEffect(() => {
+      if (!activeSessionId && pendingInput && !input && !hasRestoredRef.current) {
+        hasRestoredRef.current = true;
+        // Use setTimeout to avoid synchronous setState in effect
+        setTimeout(() => {
+          setInput(pendingInput);
+          setPendingInput('');
+        }, 0);
+      }
+      if (activeSessionId) {
+        hasRestoredRef.current = false;
+      }
+    }, [activeSessionId, pendingInput, input, setPendingInput]);
+
     // Clear pending skill after sending
     const handleSubmit = useCallback(() => {
       const trimmed = input.trim();
       if (!trimmed || isRunning) return;
 
-      onSend(trimmed);
-      setInput('');
-      clearAttachments();
-      setPendingSkill(null);
-    }, [input, isRunning, onSend, clearAttachments, setPendingSkill]);
+      const result = onSend(trimmed);
+      // Only clear input if onSend succeeded (returned true or undefined)
+      if (result !== false) {
+        setInput('');
+        clearAttachments();
+        setPendingSkill(null);
+        setPendingInput(''); // Clear saved input on successful send
+      }
+    }, [input, isRunning, onSend, clearAttachments, setPendingSkill, setPendingInput]);
 
     // Clear pending skill handler
     const handleClearSkill = useCallback(() => {
       setPendingSkill(null);
       setInput('');
+      setPendingInput('');
       textareaRef.current?.focus();
-    }, [setPendingSkill]);
+    }, [setPendingSkill, setPendingInput]);
 
     // 暴露 setInput 和 focus 方法给父组件
     useImperativeHandle(

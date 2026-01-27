@@ -361,6 +361,195 @@ fn save_artifact(cwd: String, content: String, filename: String) -> Result<Strin
     Ok(file_path.to_string_lossy().to_string())
 }
 
+// ========== Git Commands ==========
+
+#[tauri::command]
+fn git_status(cwd: String) -> Result<GitStatus, String> {
+    let output = Command::new("git")
+        .args(["status", "--porcelain", "-b"])
+        .current_dir(&cwd)
+        .output()
+        .map_err(|e| format!("Failed to run git status: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let lines: Vec<&str> = stdout.lines().collect();
+
+    let mut branch = None;
+    let mut ahead = 0;
+    let mut behind = 0;
+    let mut staged = Vec::new();
+    let mut unstaged = Vec::new();
+    let mut untracked = Vec::new();
+
+    for line in lines {
+        if line.starts_with("##") {
+            let parts: Vec<&str> = line[3..].split("...").collect();
+            branch = Some(parts[0].to_string());
+            if parts.len() > 1 {
+                if let Some(ahead_str) = parts[1].split("ahead ").nth(1) {
+                    ahead = ahead_str.split(']').next().unwrap_or("0").split(',').next().unwrap_or("0").parse().unwrap_or(0);
+                }
+                if let Some(behind_str) = parts[1].split("behind ").nth(1) {
+                    behind = behind_str.split(']').next().unwrap_or("0").parse().unwrap_or(0);
+                }
+            }
+        } else if line.len() >= 3 {
+            let status_char = &line[0..2];
+            let path = line[3..].to_string();
+            match status_char {
+                "??" => untracked.push(path),
+                s if s.starts_with(' ') => unstaged.push(GitFile { path, status: s.trim().to_string() }),
+                s if s.ends_with(' ') => staged.push(GitFile { path, status: s.trim().to_string() }),
+                s => {
+                    staged.push(GitFile { path: path.clone(), status: s.chars().next().unwrap_or(' ').to_string() });
+                    unstaged.push(GitFile { path, status: s.chars().nth(1).unwrap_or(' ').to_string() });
+                }
+            }
+        }
+    }
+
+    Ok(GitStatus {
+        branch,
+        ahead,
+        behind,
+        staged,
+        unstaged,
+        untracked,
+        current_commit: None,
+    })
+}
+
+#[tauri::command]
+fn git_diff(cwd: String, file: Option<String>) -> Result<String, String> {
+    let mut args = vec!["diff"];
+    if let Some(ref f) = file {
+        args.push(f.as_str());
+    }
+
+    let output = Command::new("git")
+        .args(&args)
+        .current_dir(&cwd)
+        .output()
+        .map_err(|e| format!("Failed to run git diff: {}", e))?;
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+#[tauri::command]
+fn git_branches(cwd: String) -> Result<Vec<GitBranch>, String> {
+    let output = Command::new("git")
+        .args(["branch", "-a"])
+        .current_dir(&cwd)
+        .output()
+        .map_err(|e| format!("Failed to run git branch: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let branches: Vec<GitBranch> = stdout
+        .lines()
+        .map(|line| {
+            let is_current = line.starts_with('*');
+            let name = line.trim_start_matches('*').trim().to_string();
+            GitBranch { name, is_current }
+        })
+        .collect();
+
+    Ok(branches)
+}
+
+#[tauri::command]
+fn git_commit(cwd: String, message: String) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(["commit", "-m", &message])
+        .current_dir(&cwd)
+        .output()
+        .map_err(|e| format!("Failed to run git commit: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+#[tauri::command]
+fn git_checkout(cwd: String, branch: String) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(["checkout", &branch])
+        .current_dir(&cwd)
+        .output()
+        .map_err(|e| format!("Failed to run git checkout: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+#[tauri::command]
+fn git_discard(cwd: String, file: String) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(["checkout", "--", &file])
+        .current_dir(&cwd)
+        .output()
+        .map_err(|e| format!("Failed to run git checkout: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok("File discarded".to_string())
+}
+
+#[tauri::command]
+fn git_add_all(cwd: String) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(&cwd)
+        .output()
+        .map_err(|e| format!("Failed to run git add: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok("All files staged".to_string())
+}
+
+#[tauri::command]
+fn git_pull(cwd: String) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(["pull"])
+        .current_dir(&cwd)
+        .output()
+        .map_err(|e| format!("Failed to run git pull: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+#[tauri::command]
+fn git_push(cwd: String) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(["push"])
+        .current_dir(&cwd)
+        .output()
+        .map_err(|e| format!("Failed to run git push: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -374,6 +563,15 @@ pub fn run() {
             send_to_sidecar,
             reveal_in_finder,
             save_artifact,
+            git_status,
+            git_diff,
+            git_branches,
+            git_commit,
+            git_checkout,
+            git_discard,
+            git_add_all,
+            git_pull,
+            git_push,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

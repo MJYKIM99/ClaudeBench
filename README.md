@@ -215,6 +215,7 @@ npm run tauri build
 
 | Version | Date | Changes |
 |---------|------|---------|
+| **v0.1.6** | 2026-01-28 | Session continue optimization: Conversation history rebuild for app restarts; Git integration: Commit dialog and status bar; Input preservation: No more lost input when switching sessions or missing working directory; Artifacts button moved to session header |
 | **v0.1.5** | 2026-01-25 | Artifact Preview System: Split-screen preview panel for HTML, SVG, Mermaid diagrams, Markdown, CSV tables with search/sort/column selection, and images; Mermaid diagrams with zoom/pan and crisp vector scaling; CSV preview with column selection and copy; Improved SVG centering |
 | **v0.1.4** | 2026-01-23 | Auto-generate session titles using AI after first conversation turn; Skills system with first-launch setup and improved UX |
 | **v0.1.3** | 2026-01-21 | Improved window drag region for macOS; Simplified About section in Settings; Fixed app icon display in About page |

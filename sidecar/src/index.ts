@@ -874,6 +874,99 @@ async function handleSessionStart(payload: Record<string, unknown>): Promise<voi
   await runQuery(session, prompt, cwd, undefined, attachments);
 }
 
+// Helper: Build conversation context from stored messages for session resume
+// Uses token-based limiting for smarter context management
+function buildConversationContext(messages: unknown[], newPrompt: string): string {
+  // Rough token estimation: ~4 chars per token for English, ~2 for Chinese
+  const estimateTokens = (text: string): number => {
+    const chineseChars = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+    const otherChars = text.length - chineseChars;
+    return Math.ceil(chineseChars / 2 + otherChars / 4);
+  };
+
+  // Extract conversation turns (user + assistant pairs)
+  const turns: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+
+  for (const msg of messages) {
+    const m = msg as Record<string, unknown>;
+
+    if (m.type === 'user_prompt' && m.prompt) {
+      turns.push({ role: 'user', content: String(m.prompt) });
+    } else if (m.type === 'assistant') {
+      // Try both possible message structures (SDK may vary)
+      const content = (m as { content?: unknown }).content
+        || (m as { message?: { content?: unknown } }).message?.content;
+
+      if (Array.isArray(content)) {
+        const textParts: string[] = [];
+        for (const block of content) {
+          if (block.type === 'text' && block.text) {
+            textParts.push(block.text);
+          }
+        }
+        if (textParts.length > 0) {
+          turns.push({ role: 'assistant', content: textParts.join('\n') });
+        }
+      }
+    } else if (m.type === 'tool_use') {
+      // Include tool usage summary for context
+      const toolName = (m as { name?: string }).name || 'unknown';
+      turns.push({ role: 'assistant', content: `[Used tool: ${toolName}]` });
+    }
+  }
+
+  // Token-based limiting: keep recent turns within budget
+  const MAX_CONTEXT_TOKENS = 6000; // Leave room for new conversation
+  const MAX_SINGLE_TURN_TOKENS = 1500; // Cap individual turns
+
+  let totalTokens = 0;
+  const recentTurns: typeof turns = [];
+
+  // Work backwards from most recent
+  for (let i = turns.length - 1; i >= 0 && totalTokens < MAX_CONTEXT_TOKENS; i--) {
+    let content = turns[i].content;
+    let turnTokens = estimateTokens(content);
+
+    // Truncate overly long individual turns
+    if (turnTokens > MAX_SINGLE_TURN_TOKENS) {
+      const maxChars = MAX_SINGLE_TURN_TOKENS * 3; // Rough char limit
+      content = content.slice(0, maxChars) + '... [truncated]';
+      turnTokens = MAX_SINGLE_TURN_TOKENS;
+    }
+
+    if (totalTokens + turnTokens <= MAX_CONTEXT_TOKENS) {
+      recentTurns.unshift({ role: turns[i].role, content });
+      totalTokens += turnTokens;
+    } else {
+      break;
+    }
+  }
+
+  // If no history, just return the new prompt
+  if (recentTurns.length === 0) {
+    return newPrompt;
+  }
+
+  // Build the context
+  const contextParts: string[] = [];
+  contextParts.push('<conversation_history>');
+  contextParts.push('Continue this conversation. Recent history:');
+  contextParts.push('');
+
+  for (const turn of recentTurns) {
+    const label = turn.role === 'user' ? '[User]' : '[Assistant]';
+    contextParts.push(`${label}: ${turn.content}`);
+    contextParts.push('');
+  }
+
+  contextParts.push('</conversation_history>');
+  contextParts.push('');
+  contextParts.push('[User (new message)]:');
+  contextParts.push(newPrompt);
+
+  return contextParts.join('\n');
+}
+
 async function handleSessionContinue(payload: Record<string, unknown>): Promise<void> {
   const sessionId = payload.sessionId as string;
   const prompt = payload.prompt as string;
@@ -889,6 +982,8 @@ async function handleSessionContinue(payload: Record<string, unknown>): Promise<
       return;
     }
 
+    const storedMessages = store.getSessionMessages(sessionId);
+
     // Recreate in-memory session
     session = {
       info: {
@@ -900,17 +995,11 @@ async function handleSessionContinue(payload: Record<string, unknown>): Promise<
         createdAt: stored.created_at,
         updatedAt: stored.updated_at,
       },
-      messages: store.getSessionMessages(sessionId),
+      messages: storedMessages,
       abortController: new AbortController(),
       pendingPermissions: new Map(),
     };
     sessions.set(sessionId, session);
-  }
-
-  // Check if we have a claudeSessionId to resume
-  if (!session.info.claudeSessionId) {
-    send({ type: 'runner.error', payload: { sessionId, message: 'Session has no resume id yet. Cannot continue.' } });
-    return;
   }
 
   session.info.status = 'running';
@@ -934,8 +1023,13 @@ async function handleSessionContinue(payload: Record<string, unknown>): Promise<
   session.messages.push(userPromptMsg);
   store.recordMessage(sessionId, userPromptMsg);
 
-  // Use claudeSessionId for resume
-  await runQuery(session, prompt, session.info.cwd || process.cwd(), session.info.claudeSessionId, attachments);
+  // Build conversation context with history (don't rely on SDK resume)
+  // This allows session continuation even after app restart
+  const historyMessages = session.messages.slice(0, -1); // Exclude the just-added user prompt
+  const conversationPrompt = buildConversationContext(historyMessages, prompt);
+
+  // Start fresh SDK session with conversation context
+  await runQuery(session, conversationPrompt, session.info.cwd || process.cwd(), undefined, attachments);
 }
 
 async function runQuery(

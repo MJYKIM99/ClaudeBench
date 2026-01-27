@@ -6,6 +6,7 @@ import { ArtifactPreview } from './components/artifacts';
 import { ArtifactsPanel } from './components/ArtifactsPanel';
 import { ChatInputArea } from './components/chat-input';
 import { ChatPanel } from './components/ChatPanel';
+import { GitStatusBar } from './components/GitStatusBar';
 import { SettingsPanel } from './components/SettingsPanel';
 import { SetupDialog } from './components/SetupDialog';
 import { Sidebar } from './components/Sidebar';
@@ -196,15 +197,19 @@ function App() {
   const clearAttachments = useAppStore((s) => s.clearAttachments);
 
   const handleSendMessage = useCallback(
-    (prompt: string) => {
+    (prompt: string): boolean => {
+      // For existing sessions, use session's cwd; for new sessions, use global cwd
+      const session = activeSessionId ? sessions[activeSessionId] : null;
+      const effectiveCwd = session?.cwd || cwd;
+
       // 如果没有选择工作目录，提示用户先选择
-      if (!cwd) {
+      if (!effectiveCwd) {
         // 触发 RepoSelector 展开并显示提示
         useAppStore.getState().setShowCwdPrompt(true);
-        return;
+        return false; // Signal failure - don't clear input
       }
 
-      const currentCwd = cwd;
+      const currentCwd = effectiveCwd;
       const currentAttachments = attachments.length > 0 ? [...attachments] : undefined;
 
       // Clear attachments after capturing them
@@ -212,7 +217,7 @@ function App() {
         clearAttachments();
       }
 
-      if (!activeSessionId) {
+      if (!activeSessionId || !session) {
         // No active session - start a new one from welcome page
         setPendingStart(true);
         send({
@@ -224,13 +229,15 @@ function App() {
             attachments: currentAttachments,
           },
         });
-        return;
+        return true; // Signal success
       }
 
-      const session = sessions[activeSessionId];
-      if (!session) return;
+      // Check if this is a truly new session or a resumed one from DB
+      // A session from DB will have createdAt set, even if not yet hydrated
+      const isExistingSession = session.createdAt !== undefined;
+      const isNewSession = session.messages.length === 0 && !isExistingSession;
 
-      if (session.messages.length === 0) {
+      if (isNewSession) {
         // First message - start session
         send({
           type: 'session.start',
@@ -242,7 +249,7 @@ function App() {
           },
         });
       } else {
-        // Continue session
+        // Continue session (either has messages or was hydrated from DB)
         send({
           type: 'session.continue',
           payload: {
@@ -252,6 +259,7 @@ function App() {
           },
         });
       }
+      return true; // Signal success
     },
     [activeSessionId, sessions, send, cwd, setPendingStart, attachments, clearAttachments]
   );
@@ -318,7 +326,6 @@ function App() {
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
         onSelectSession={handleSelectSession}
-        onOpenArtifacts={handleOpenArtifacts}
         onOpenSettings={handleOpenSettings}
         onOpenSkills={handleOpenSkills}
       />
@@ -337,7 +344,10 @@ function App() {
               <WelcomeView onSend={handleSendMessage} onStop={handleStopSession} />
             ) : (
               <>
-                <ChatPanel onPermissionResponse={handlePermissionResponse} />
+                <ChatPanel
+                  onPermissionResponse={handlePermissionResponse}
+                  onOpenArtifacts={handleOpenArtifacts}
+                />
                 <ChatInputArea onSend={handleSendMessage} onStop={handleStopSession} />
               </>
             )}
@@ -364,6 +374,7 @@ function App() {
             </div>
           )}
         </div>
+        <GitStatusBar />
       </main>
 
       {showArtifacts && (

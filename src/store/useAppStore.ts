@@ -33,6 +33,7 @@ interface AppState {
   skillsLoading: boolean;
   showCwdPrompt: boolean;
   pendingSkill: PendingSkill | null;
+  pendingInput: string; // Preserve input across session switches
 
   // New UX state
   mode: SessionMode;
@@ -48,6 +49,7 @@ interface AppState {
   setGlobalError: (error: string | null) => void;
   setShowStartModal: (show: boolean) => void;
   setActiveSessionId: (id: string | null) => void;
+  setPendingInput: (input: string) => void;
   markHistoryRequested: (sessionId: string) => void;
   resolvePermissionRequest: (sessionId: string, toolUseId: string) => void;
   handleServerEvent: (event: ServerEvent) => void;
@@ -97,6 +99,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   skillsLoading: false,
   showCwdPrompt: false,
   pendingSkill: null,
+  pendingInput: '',
 
   // New UX state
   mode: 'agent',
@@ -112,6 +115,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setGlobalError: (globalError) => set({ globalError }),
   setShowStartModal: (showStartModal) => set({ showStartModal }),
   setActiveSessionId: (id) => set({ activeSessionId: id }),
+  setPendingInput: (pendingInput) => set({ pendingInput }),
 
   // New UX actions
   setMode: (mode) => set({ mode }),

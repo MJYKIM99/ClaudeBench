@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Folder, Info, MessageSquare } from 'lucide-react';
+import { FileCode, Folder, Info, MessageSquare } from 'lucide-react';
 
 import { useAppStore } from '../store/useAppStore';
 import type { PermissionResult, StreamMessage, SystemMessage } from '../types';
@@ -18,6 +18,7 @@ interface ChatPanelProps {
     input?: unknown,
     remember?: boolean
   ) => void;
+  onOpenArtifacts?: () => void;
 }
 
 interface MessageGroup {
@@ -47,7 +48,7 @@ function groupMessages(messages: StreamMessage[]): MessageGroup[] {
   return groups;
 }
 
-export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
+export function ChatPanel({ onPermissionResponse, onOpenArtifacts }: ChatPanelProps) {
   const sessions = useAppStore((s) => s.sessions);
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const resolvePermissionRequest = useAppStore((s) => s.resolvePermissionRequest);
@@ -56,6 +57,8 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
 
   const session = activeSessionId ? sessions[activeSessionId] : null;
   const messages = session?.messages;
+  const artifacts = session?.artifacts ?? [];
+  const artifactCount = artifacts.length;
 
   // Extract system info from messages
   const systemInfo = useMemo(() => {
@@ -149,6 +152,16 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
           )}
         </div>
         <div className="chat-header-right">
+          {artifactCount > 0 && onOpenArtifacts && (
+            <button
+              className="info-btn artifacts-btn"
+              onClick={onOpenArtifacts}
+              title={`${artifactCount} artifact${artifactCount > 1 ? 's' : ''}`}
+            >
+              <FileCode size={14} />
+              <span className="artifacts-count">{artifactCount}</span>
+            </button>
+          )}
           {session.status === 'running' && <span className="status-badge running">Running</span>}
           {systemInfo && (
             <button

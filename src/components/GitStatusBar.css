@@ -1,0 +1,243 @@
+.git-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 24px;
+  padding: 0 12px;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* Branch selector */
+.git-branch-selector {
+  position: relative;
+}
+
+.git-branch-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  transition: all var(--transition-fast);
+}
+
+.git-branch-btn:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+.git-branch-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 4px;
+  min-width: 180px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+}
+
+.git-branch-menu-header {
+  padding: 8px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.git-branch-menu-empty {
+  padding: 12px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.git-branch-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--color-text);
+  transition: background var(--transition-fast);
+}
+
+.git-branch-menu-item:hover:not(:disabled) {
+  background: var(--color-hover);
+}
+
+.git-branch-menu-item.current {
+  color: var(--color-primary);
+  cursor: default;
+}
+
+.git-branch-menu-item:disabled {
+  cursor: default;
+}
+
+/* Sync buttons */
+.git-sync-group {
+  display: flex;
+  gap: 2px;
+}
+
+.git-sync-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.git-sync-btn.pull {
+  color: var(--color-info);
+}
+
+.git-sync-btn.pull:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--color-info);
+}
+
+.git-sync-btn.push {
+  color: var(--color-success);
+}
+
+.git-sync-btn.push:hover:not(:disabled) {
+  background: rgba(120, 140, 93, 0.1);
+  border-color: var(--color-success);
+}
+
+.git-sync-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Commit button */
+.git-commit-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-warning);
+  transition: all var(--transition-fast);
+}
+
+.git-commit-btn:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* Refresh button */
+.git-refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: all var(--transition-fast);
+}
+
+.git-refresh-btn:hover:not(:disabled) {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+.git-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Spinning animation */
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Toast notification */
+.git-toast {
+  position: fixed;
+  bottom: 40px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  font-size: 12px;
+  animation: toast-in 0.2s ease;
+  z-index: 1000;
+}
+
+.git-toast.success {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.git-toast.error {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.git-toast.info {
+  color: var(--color-info);
+  border-color: var(--color-info);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

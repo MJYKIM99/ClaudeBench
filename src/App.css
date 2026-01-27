@@ -146,7 +146,7 @@ body {
   height: 52px;
   -webkit-app-region: drag;
   z-index: 1000;
-  pointer-events: auto;
+  pointer-events: none;
   /* Only cover chat area, not preview area */
   right: 0;
 }

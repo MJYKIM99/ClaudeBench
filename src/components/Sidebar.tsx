@@ -11,7 +11,6 @@ interface SidebarProps {
   onNewSession: () => void;
   onDeleteSession: (sessionId: string) => void;
   onSelectSession: () => void;
-  onOpenArtifacts: () => void;
   onOpenSettings: () => void;
   onOpenSkills: () => void;
 }
@@ -53,14 +52,12 @@ export function Sidebar({
   onNewSession,
   onDeleteSession,
   onSelectSession,
-  onOpenArtifacts,
   onOpenSettings,
   onOpenSkills,
 }: SidebarProps) {
   const sessions = useAppStore((s) => s.sessions);
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const setActiveSessionId = useAppStore((s) => s.setActiveSessionId);
-  const artifactCount = activeSessionId ? (sessions[activeSessionId]?.artifacts ?? []).length : 0;
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false,
     x: 0,
@@ -193,22 +190,6 @@ export function Sidebar({
 
       <div className="sidebar-footer">
         <div className="footer-buttons">
-          <button className="footer-btn artifacts-btn" onClick={onOpenArtifacts} title="Artifacts">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <rect x="3" y="3" width="18" height="14" rx="2" />
-              <path d="M7 21h10" />
-              <path d="M12 17v4" />
-            </svg>
-            Artifacts
-            {artifactCount > 0 && <span className="footer-badge">{artifactCount}</span>}
-          </button>
           <button className="footer-btn skills-btn" onClick={onOpenSkills} title="Skills">
             <svg
               width="16"
@@ -237,7 +218,7 @@ export function Sidebar({
             </svg>
           </button>
         </div>
-        <span className="version">v0.1.5</span>
+        <span className="version">v0.1.6</span>
       </div>
 
       {/* Context Menu */}
