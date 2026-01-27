@@ -36,10 +36,7 @@ export function extractPaths(text: string): string[] {
 /**
  * 处理 Cmd+Click 打开路径
  */
-export function handlePathClick(
-  event: React.MouseEvent,
-  path: string
-): boolean {
+export function handlePathClick(event: React.MouseEvent, path: string): boolean {
   if (event.metaKey) {
     event.preventDefault();
     event.stopPropagation();

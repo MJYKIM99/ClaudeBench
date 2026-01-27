@@ -1,11 +1,11 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+
 import { useAppStore } from '../store/useAppStore';
-import type { ServerEvent, ClientEvent } from '../types';
+import type { ClientEvent, ServerEvent } from '../types';
 
 interface UseSidecarReturn {
-  isConnected: boolean;
   start: () => Promise<void>;
   stop: () => Promise<void>;
   send: (event: ClientEvent) => Promise<void>;
@@ -73,18 +73,20 @@ export function useSidecar(): UseSidecarReturn {
     }
   }, [setGlobalError]);
 
-  const send = useCallback(async (event: ClientEvent) => {
-    try {
-      await invoke('send_to_sidecar', {
-        message: JSON.stringify(event),
-      });
-    } catch (e) {
-      setGlobalError(String(e));
-    }
-  }, [setGlobalError]);
+  const send = useCallback(
+    async (event: ClientEvent) => {
+      try {
+        await invoke('send_to_sidecar', {
+          message: JSON.stringify(event),
+        });
+      } catch (e) {
+        setGlobalError(String(e));
+      }
+    },
+    [setGlobalError]
+  );
 
   return {
-    isConnected: isConnectedRef.current,
     start,
     stop,
     send,

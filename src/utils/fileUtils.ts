@@ -9,7 +9,7 @@ export async function saveArtifact(
   const filePath = await invoke<string>('save_artifact', {
     cwd,
     content,
-    filename: name
+    filename: name,
   });
   return filePath;
 }

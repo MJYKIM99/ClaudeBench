@@ -1,9 +1,11 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
+
+import type { ParameterValidationError, SkillInfo, SkillParameterValues } from '../../types';
 import { Button } from '../ui';
-import type { SkillInfo, SkillParameterValues, ParameterValidationError } from '../../types';
 import { SkillParameterForm } from './SkillParameterForm';
 import { SkillPreview } from './SkillPreview';
+
 import './SkillUseModal.css';
 
 interface SkillUseModalProps {
@@ -53,10 +55,16 @@ export function SkillUseModal({ skill, onClose, onUse }: SkillUseModalProps) {
           newErrors.push({ name: param.name, message: `${param.label} must be a number` });
         } else {
           if (param.min !== undefined && numValue < param.min) {
-            newErrors.push({ name: param.name, message: `${param.label} must be at least ${param.min}` });
+            newErrors.push({
+              name: param.name,
+              message: `${param.label} must be at least ${param.min}`,
+            });
           }
           if (param.max !== undefined && numValue > param.max) {
-            newErrors.push({ name: param.name, message: `${param.label} must be at most ${param.max}` });
+            newErrors.push({
+              name: param.name,
+              message: `${param.label} must be at most ${param.max}`,
+            });
           }
         }
       }
@@ -64,10 +72,16 @@ export function SkillUseModal({ skill, onClose, onUse }: SkillUseModalProps) {
       if (param.type === 'string' || param.type === 'text') {
         const strValue = String(value);
         if (param.minLength !== undefined && strValue.length < param.minLength) {
-          newErrors.push({ name: param.name, message: `${param.label} must be at least ${param.minLength} characters` });
+          newErrors.push({
+            name: param.name,
+            message: `${param.label} must be at least ${param.minLength} characters`,
+          });
         }
         if (param.maxLength !== undefined && strValue.length > param.maxLength) {
-          newErrors.push({ name: param.name, message: `${param.label} must be at most ${param.maxLength} characters` });
+          newErrors.push({
+            name: param.name,
+            message: `${param.label} must be at most ${param.maxLength} characters`,
+          });
         }
         if (param.pattern) {
           try {
@@ -121,9 +135,7 @@ export function SkillUseModal({ skill, onClose, onUse }: SkillUseModalProps) {
         <div className="modal-header">
           <div className="modal-title-section">
             <h3 className="modal-title">{skill.name}</h3>
-            {skill.description && (
-              <p className="modal-description">{skill.description}</p>
-            )}
+            {skill.description && <p className="modal-description">{skill.description}</p>}
           </div>
           <button className="modal-close" onClick={onClose} aria-label="Close">
             <X size={16} />
@@ -147,16 +159,11 @@ export function SkillUseModal({ skill, onClose, onUse }: SkillUseModalProps) {
                 <div className="modal-section">
                   <div className="section-header">
                     <h4 className="section-title">Prompt Preview</h4>
-                    <button
-                      className="toggle-preview"
-                      onClick={() => setShowPreview(!showPreview)}
-                    >
+                    <button className="toggle-preview" onClick={() => setShowPreview(!showPreview)}>
                       {showPreview ? 'Hide' : 'Show'}
                     </button>
                   </div>
-                  {showPreview && (
-                    <SkillPreview template={skill.template} values={values} />
-                  )}
+                  {showPreview && <SkillPreview template={skill.template} values={values} />}
                 </div>
               )}
             </>

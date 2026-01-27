@@ -1,4 +1,5 @@
-import { useState, useCallback, type DragEvent, type ReactNode } from 'react';
+import { useCallback, useState, type DragEvent, type ReactNode } from 'react';
+
 import type { Attachment } from '../../types';
 
 interface DropZoneProps {
@@ -36,11 +37,14 @@ async function fileToAttachment(file: File): Promise<Attachment> {
 export function DropZone({ children, onFilesAdded, disabled }: DropZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
 
-  const handleDragEnter = useCallback((e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!disabled) setIsDragging(true);
-  }, [disabled]);
+  const handleDragEnter = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!disabled) setIsDragging(true);
+    },
+    [disabled]
+  );
 
   const handleDragLeave = useCallback((e: DragEvent) => {
     e.preventDefault();
@@ -53,19 +57,22 @@ export function DropZone({ children, onFilesAdded, disabled }: DropZoneProps) {
     e.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback(async (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
+  const handleDrop = useCallback(
+    async (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
 
-    if (disabled) return;
+      if (disabled) return;
 
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length === 0) return;
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length === 0) return;
 
-    const attachments = await Promise.all(files.map(fileToAttachment));
-    onFilesAdded(attachments);
-  }, [disabled, onFilesAdded]);
+      const attachments = await Promise.all(files.map(fileToAttachment));
+      onFilesAdded(attachments);
+    },
+    [disabled, onFilesAdded]
+  );
 
   return (
     <div
@@ -78,9 +85,7 @@ export function DropZone({ children, onFilesAdded, disabled }: DropZoneProps) {
       {children}
       {isDragging && (
         <div className="dropzone-overlay">
-          <div className="dropzone-message">
-            Drop files here
-          </div>
+          <div className="dropzone-message">Drop files here</div>
         </div>
       )}
     </div>

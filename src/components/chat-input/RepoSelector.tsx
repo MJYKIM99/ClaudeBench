@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
+
 import { useAppStore } from '../../store/useAppStore';
+
 import './RepoSelector.css';
 
 interface RepoInfo {
@@ -10,7 +12,17 @@ interface RepoInfo {
 
 export function RepoSelector() {
   const [isOpen, setIsOpen] = useState(false);
-  const [repos, setRepos] = useState<RepoInfo[]>([]);
+  const [repos, setRepos] = useState<RepoInfo[]>(() => {
+    const saved = localStorage.getItem('recentRepos');
+    if (!saved) return [];
+    try {
+      const parsed: unknown = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return [];
+      return parsed as RepoInfo[];
+    } catch {
+      return [];
+    }
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -19,29 +31,15 @@ export function RepoSelector() {
   const showCwdPrompt = useAppStore((s) => s.showCwdPrompt);
   const setShowCwdPrompt = useAppStore((s) => s.setShowCwdPrompt);
 
-  // 当 showCwdPrompt 为 true 时，自动展开下拉菜单
+  // 当 showCwdPrompt 为 true 时，自动显示提示（下拉菜单强制展开）
   useEffect(() => {
-    if (showCwdPrompt) {
-      setIsOpen(true);
-      // 3 秒后自动关闭提示（但保持下拉菜单打开）
-      const timer = setTimeout(() => {
-        setShowCwdPrompt(false);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
+    if (!showCwdPrompt) return;
+    // 3 秒后自动关闭提示（但保持下拉菜单打开）
+    const timer = setTimeout(() => {
+      setShowCwdPrompt(false);
+    }, 3000);
+    return () => clearTimeout(timer);
   }, [showCwdPrompt, setShowCwdPrompt]);
-
-  // Load recent repos from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('recentRepos');
-    if (saved) {
-      try {
-        setRepos(JSON.parse(saved));
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
 
   // Click outside to close
   useEffect(() => {
@@ -59,13 +57,16 @@ export function RepoSelector() {
     localStorage.setItem('recentRepos', JSON.stringify(newRepos.slice(0, 10)));
   }, []);
 
-  const handleSelectRepo = useCallback((repo: RepoInfo) => {
-    setCwd(repo.path);
-    // Move to top of list
-    const updated = [repo, ...repos.filter((r) => r.path !== repo.path)];
-    saveRepos(updated);
-    setIsOpen(false);
-  }, [repos, setCwd, saveRepos]);
+  const handleSelectRepo = useCallback(
+    (repo: RepoInfo) => {
+      setCwd(repo.path);
+      // Move to top of list
+      const updated = [repo, ...repos.filter((r) => r.path !== repo.path)];
+      saveRepos(updated);
+      setIsOpen(false);
+    },
+    [repos, setCwd, saveRepos]
+  );
 
   const handleAddRepo = useCallback(async () => {
     try {
@@ -88,26 +89,50 @@ export function RepoSelector() {
   const currentRepo = repos.find((r) => r.path === cwd);
   const displayName = currentRepo?.name || (cwd ? cwd.split('/').pop() : 'Select folder');
 
+  const dropdownOpen = isOpen || showCwdPrompt;
+
   const filteredRepos = searchQuery
     ? repos.filter((r) => r.name.toLowerCase().includes(searchQuery.toLowerCase()))
     : repos;
 
   return (
     <div className="repo-selector-container" ref={containerRef}>
-      <button
-        className="repo-selector-trigger"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <svg className="repo-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <path d="M2 4h12M2 4v8a2 2 0 002 2h8a2 2 0 002-2V4M2 4l2-2h8l2 2" strokeLinecap="round" strokeLinejoin="round" />
+      <button className="repo-selector-trigger" onClick={() => setIsOpen((prev) => !prev)}>
+        <svg
+          className="repo-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
+          <path
+            d="M2 4h12M2 4v8a2 2 0 002 2h8a2 2 0 002-2V4M2 4l2-2h8l2 2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
         <span className="repo-name">{displayName}</span>
-        <svg className="repo-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <svg
+          className="repo-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="currentColor"
+        >
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
         </svg>
       </button>
 
-      {isOpen && (
+      {dropdownOpen && (
         <div className="repo-selector-dropdown">
           {/* 气泡提示 */}
           {showCwdPrompt && (
@@ -116,7 +141,15 @@ export function RepoSelector() {
             </div>
           )}
           <div className="repo-search">
-            <svg className="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              className="search-icon"
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <circle cx="6" cy="6" r="4" />
               <path d="M9 9l3 3" strokeLinecap="round" />
             </svg>
@@ -139,12 +172,32 @@ export function RepoSelector() {
                 className={`repo-option ${repo.path === cwd ? 'selected' : ''}`}
                 onClick={() => handleSelectRepo(repo)}
               >
-                <svg className="repo-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M2 4h12M2 4v8a2 2 0 002 2h8a2 2 0 002-2V4M2 4l2-2h8l2 2" strokeLinecap="round" strokeLinejoin="round" />
+                <svg
+                  className="repo-icon"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <path
+                    d="M2 4h12M2 4v8a2 2 0 002 2h8a2 2 0 002-2V4M2 4l2-2h8l2 2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
                 <span className="repo-option-name">{repo.name}</span>
                 {repo.path === cwd && (
-                  <svg className="check-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    className="check-icon"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <path d="M3 7l3 3 5-6" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 )}
@@ -153,7 +206,14 @@ export function RepoSelector() {
           </div>
 
           <button className="repo-add" onClick={handleAddRepo}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <path d="M7 2v10M2 7h10" strokeLinecap="round" />
             </svg>
             Add repository

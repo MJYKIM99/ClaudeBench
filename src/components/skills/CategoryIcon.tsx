@@ -70,7 +70,13 @@ export function CategoryIcon({ type, color = 'currentColor', size = 20 }: Catego
 }
 
 // Skill icon component
-export function SkillIcon({ size = 20, color = 'currentColor' }: { size?: number; color?: string }) {
+export function SkillIcon({
+  size = 20,
+  color = 'currentColor',
+}: {
+  size?: number;
+  color?: string;
+}) {
   return (
     <svg
       width={size}

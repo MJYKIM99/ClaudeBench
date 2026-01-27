@@ -33,7 +33,13 @@ export function AttachmentPreview({ attachments, onRemove }: AttachmentPreviewPr
             title="Remove"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-              <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+              <path
+                d="M3 3l6 6M9 3l-6 6"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                fill="none"
+              />
             </svg>
           </button>
         </div>

@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+
 import './TextShimmer.css';
 
 interface TextShimmerProps {
@@ -11,9 +12,5 @@ export function TextShimmer({ children, isActive = true }: TextShimmerProps) {
     return <span>{children}</span>;
   }
 
-  return (
-    <span className="text-shimmer">
-      {children}
-    </span>
-  );
+  return <span className="text-shimmer">{children}</span>;
 }

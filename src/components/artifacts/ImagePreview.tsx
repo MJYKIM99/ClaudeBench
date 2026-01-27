@@ -1,4 +1,5 @@
 import { useState } from 'react';
+
 import './ArtifactPreview.css';
 
 interface ImagePreviewProps {
@@ -25,10 +26,16 @@ export function ImagePreview({ src, alt = 'Image preview' }: ImagePreviewProps) 
   return (
     <div className="image-preview">
       <div className="image-preview-toolbar">
-        <button onClick={handleZoomOut} title="Zoom out">−</button>
+        <button onClick={handleZoomOut} title="Zoom out">
+          −
+        </button>
         <span className="zoom-level">{Math.round(scale * 100)}%</span>
-        <button onClick={handleZoomIn} title="Zoom in">+</button>
-        <button onClick={handleReset} title="Reset zoom">Reset</button>
+        <button onClick={handleZoomIn} title="Zoom in">
+          +
+        </button>
+        <button onClick={handleReset} title="Reset zoom">
+          Reset
+        </button>
       </div>
       <div className="image-preview-container">
         <img

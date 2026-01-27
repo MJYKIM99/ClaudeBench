@@ -1,6 +1,8 @@
 import { useState } from 'react';
+
 import { useAppStore } from '../../store/useAppStore';
 import { SkillIcon } from './CategoryIcon';
+
 import './SkillManager.css';
 
 interface SkillManagerProps {
@@ -79,7 +81,9 @@ export function SkillManager({ onBack }: SkillManagerProps) {
         payload: { url: githubUrl.trim() },
       });
 
-      setInstallSuccess('Installation request sent. The skill will be downloaded to ~/.claude/skills/');
+      setInstallSuccess(
+        'Installation request sent. The skill will be downloaded to ~/.claude/skills/'
+      );
       setGithubUrl('');
 
       setTimeout(() => {
@@ -93,7 +97,7 @@ export function SkillManager({ onBack }: SkillManagerProps) {
   };
 
   const handleCreateSkill = () => {
-    const template = SKILL_TEMPLATES.find(t => t.id === selectedTemplate);
+    const template = SKILL_TEMPLATES.find((t) => t.id === selectedTemplate);
 
     // Build the prompt for skill-creator
     let prompt = '/skill-creator\n\n';
@@ -136,15 +140,21 @@ export function SkillManager({ onBack }: SkillManagerProps) {
   };
 
   const handleDeleteSkill = (skillPath: string, skillName: string) => {
-    if (confirm(`Are you sure you want to delete "${skillName}"?`)) {
-      window.sidecarSend?.({
-        type: 'skills.delete',
-        payload: { path: skillPath },
-      });
-      setTimeout(() => {
-        window.sidecarSend?.({ type: 'skills.list', payload: {} });
-      }, 500);
-    }
+    const confirmed = confirm(
+      `Are you sure you want to delete "${skillName}"?\n\nThis action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const secondConfirm = prompt(`To confirm deletion, type DELETE.\n\nSkill: ${skillName}`, '');
+    if (!secondConfirm || secondConfirm.trim().toUpperCase() !== 'DELETE') return;
+
+    window.sidecarSend?.({
+      type: 'skills.delete',
+      payload: { path: skillPath },
+    });
+    setTimeout(() => {
+      window.sidecarSend?.({ type: 'skills.list', payload: {} });
+    }, 500);
   };
 
   const handleOpenSkillFolder = (skillPath: string) => {
@@ -154,13 +164,21 @@ export function SkillManager({ onBack }: SkillManagerProps) {
     });
   };
 
-  const canCreate = selectedTemplate && (selectedTemplate === 'custom' ? skillDescription.trim() : true);
+  const canCreate =
+    selectedTemplate && (selectedTemplate === 'custom' ? skillDescription.trim() : true);
 
   return (
     <div className="skill-manager">
       <div className="skill-manager-header">
         <button className="back-btn" onClick={onBack}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <polyline points="15 18 9 12 15 6" />
           </svg>
           Back
@@ -195,7 +213,8 @@ export function SkillManager({ onBack }: SkillManagerProps) {
             <div className="install-section">
               <h3>Install from GitHub</h3>
               <p className="install-hint">
-                Enter a GitHub repository URL containing a skill. The skill will be cloned to <code>~/.claude/skills/</code>
+                Enter a GitHub repository URL containing a skill. The skill will be cloned to{' '}
+                <code>~/.claude/skills/</code>
               </p>
               <div className="install-input-group">
                 <input
@@ -246,8 +265,8 @@ export function SkillManager({ onBack }: SkillManagerProps) {
                   className="skill-description-input"
                   placeholder={
                     selectedTemplate === 'custom'
-                      ? "Describe your skill in detail..."
-                      : "Add more details about what you need (optional)..."
+                      ? 'Describe your skill in detail...'
+                      : 'Add more details about what you need (optional)...'
                   }
                   value={skillDescription}
                   onChange={(e) => setSkillDescription(e.target.value)}
@@ -271,15 +290,10 @@ export function SkillManager({ onBack }: SkillManagerProps) {
                   </label>
                   {hasReferenceFiles && (
                     <div className="reference-folder-info">
-                      <p>
-                        Put your reference files (docs, examples, templates) in:
-                      </p>
+                      <p>Put your reference files (docs, examples, templates) in:</p>
                       <div className="folder-path-row">
                         <code>{referenceFolder}</code>
-                        <button
-                          className="open-folder-btn"
-                          onClick={handleOpenReferenceFolder}
-                        >
+                        <button className="open-folder-btn" onClick={handleOpenReferenceFolder}>
                           Open Folder
                         </button>
                       </div>
@@ -295,11 +309,7 @@ export function SkillManager({ onBack }: SkillManagerProps) {
             {/* Create button */}
             {selectedTemplate && (
               <div className="create-actions">
-                <button
-                  className="create-btn"
-                  onClick={handleCreateSkill}
-                  disabled={!canCreate}
-                >
+                <button className="create-btn" onClick={handleCreateSkill} disabled={!canCreate}>
                   Create Skill with Claude
                 </button>
                 <p className="create-hint">
@@ -343,7 +353,14 @@ export function SkillManager({ onBack }: SkillManagerProps) {
                         onClick={() => handleOpenSkillFolder(skill.path)}
                         title="Open in Finder"
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
                           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                         </svg>
                       </button>
@@ -352,7 +369,14 @@ export function SkillManager({ onBack }: SkillManagerProps) {
                         onClick={() => handleDeleteSkill(skill.path, skill.name)}
                         title="Delete skill"
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
                           <polyline points="3 6 5 6 21 6" />
                           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                         </svg>

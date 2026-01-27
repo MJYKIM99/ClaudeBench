@@ -1,5 +1,7 @@
 import { useCallback, useMemo } from 'react';
-import type { SkillParameter, SkillParameterValues, ParameterValidationError } from '../../types';
+
+import type { ParameterValidationError, SkillParameter, SkillParameterValues } from '../../types';
+
 import './SkillParameterForm.css';
 
 interface SkillParameterFormProps {
@@ -82,12 +84,15 @@ function MultiSelectField({ param, value, onChange }: FieldProps) {
     return (value as string[]) ?? (param.default as string[]) ?? [];
   }, [value, param.default]);
 
-  const handleChange = useCallback((optValue: string, checked: boolean) => {
-    const newValues = checked
-      ? [...selectedValues, optValue]
-      : selectedValues.filter((v) => v !== optValue);
-    onChange(param.name, newValues);
-  }, [selectedValues, onChange, param.name]);
+  const handleChange = useCallback(
+    (optValue: string, checked: boolean) => {
+      const newValues = checked
+        ? [...selectedValues, optValue]
+        : selectedValues.filter((v) => v !== optValue);
+      onChange(param.name, newValues);
+    },
+    [selectedValues, onChange, param.name]
+  );
 
   return (
     <div className="param-multiselect">
@@ -131,7 +136,12 @@ function FileField({ param, value, error, onChange }: FieldProps) {
   );
 }
 
-export function SkillParameterForm({ parameters, values, onChange, errors = [] }: SkillParameterFormProps) {
+export function SkillParameterForm({
+  parameters,
+  values,
+  onChange,
+  errors = [],
+}: SkillParameterFormProps) {
   const errorMap = useMemo(() => {
     const map: Record<string, string> = {};
     for (const err of errors) {
@@ -140,9 +150,12 @@ export function SkillParameterForm({ parameters, values, onChange, errors = [] }
     return map;
   }, [errors]);
 
-  const handleChange = useCallback((name: string, value: string | number | boolean | string[]) => {
-    onChange({ ...values, [name]: value });
-  }, [values, onChange]);
+  const handleChange = useCallback(
+    (name: string, value: string | number | boolean | string[]) => {
+      onChange({ ...values, [name]: value });
+    },
+    [values, onChange]
+  );
 
   const renderField = (param: SkillParameter) => {
     const value = values[param.name];
@@ -177,13 +190,9 @@ export function SkillParameterForm({ parameters, values, onChange, errors = [] }
             {param.label}
             {param.required && <span className="param-required">*</span>}
           </label>
-          {param.description && (
-            <p className="param-description">{param.description}</p>
-          )}
+          {param.description && <p className="param-description">{param.description}</p>}
           {renderField(param)}
-          {errorMap[param.name] && (
-            <p className="param-error">{errorMap[param.name]}</p>
-          )}
+          {errorMap[param.name] && <p className="param-error">{errorMap[param.name]}</p>}
         </div>
       ))}
     </div>

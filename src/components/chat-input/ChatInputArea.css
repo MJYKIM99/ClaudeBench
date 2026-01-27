@@ -10,9 +10,10 @@
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 14px 18px;
-  transition: border-color var(--transition-normal),
-              box-shadow var(--transition-normal),
-              transform var(--transition-fast);
+  transition:
+    border-color var(--transition-normal),
+    box-shadow var(--transition-normal),
+    transform var(--transition-fast);
 }
 
 .chat-input-container:focus-within {
@@ -187,7 +188,9 @@
   border-radius: 8px;
   color: #888;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .attach-button:hover:not(:disabled) {
@@ -210,9 +213,10 @@
   border: none;
   border-radius: 50%;
   cursor: pointer;
-  transition: background var(--transition-normal),
-              box-shadow var(--transition-normal),
-              transform var(--transition-fast);
+  transition:
+    background var(--transition-normal),
+    box-shadow var(--transition-normal),
+    transform var(--transition-fast);
 }
 
 .send-button:disabled {
@@ -338,7 +342,9 @@
   border-radius: 4px;
   color: #888;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .attachment-remove:hover {

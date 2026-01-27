@@ -1,10 +1,12 @@
-import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import { MessageSquare, Folder, Info } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Folder, Info, MessageSquare } from 'lucide-react';
+
 import { useAppStore } from '../store/useAppStore';
-import { MessageCard } from './MessageCard';
-import { DecisionPanel } from './DecisionPanel';
+import type { PermissionResult, StreamMessage, SystemMessage } from '../types';
 import { revealInFinder } from '../utils/pathUtils';
-import type { SystemMessage, PermissionResult, StreamMessage } from '../types';
+import { DecisionPanel } from './DecisionPanel';
+import { MessageCard } from './MessageCard';
+
 import './ChatPanel.css';
 
 interface ChatPanelProps {
@@ -28,7 +30,7 @@ function groupMessages(messages: StreamMessage[]): MessageGroup[] {
   let currentGroup: MessageGroup | null = null;
 
   for (const message of messages) {
-    if ((message as any).type === 'user_prompt') {
+    if (message.type === 'user_prompt') {
       if (currentGroup) {
         groups.push(currentGroup);
       }
@@ -53,21 +55,20 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
   const [showInfo, setShowInfo] = useState(false);
 
   const session = activeSessionId ? sessions[activeSessionId] : null;
+  const messages = session?.messages;
 
   // Extract system info from messages
   const systemInfo = useMemo(() => {
-    if (!session?.messages) return null;
-    const systemMsg = session.messages.find(
-      (m): m is SystemMessage => (m as any).type === 'system'
-    );
+    if (!messages) return null;
+    const systemMsg = messages.find((m): m is SystemMessage => m.type === 'system');
     return systemMsg || null;
-  }, [session?.messages]);
+  }, [messages]);
 
   // Filter out system messages for display
   const displayMessages = useMemo(() => {
-    if (!session?.messages) return [];
-    return session.messages.filter((m) => (m as any).type !== 'system');
-  }, [session?.messages]);
+    if (!messages) return [];
+    return messages.filter((m) => m.type !== 'system');
+  }, [messages]);
 
   // Group messages by user prompt
   const messageGroups = useMemo(() => {
@@ -92,10 +93,16 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
     if (scrollRef.current && isNearBottomRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [session?.messages, permissionRequests.length]);
+  }, [messages, permissionRequests.length]);
 
   const handlePermissionSubmit = useCallback(
-    (toolUseId: string, result: PermissionResult, toolName?: string, input?: unknown, remember?: boolean) => {
+    (
+      toolUseId: string,
+      result: PermissionResult,
+      toolName?: string,
+      input?: unknown,
+      remember?: boolean
+    ) => {
       if (!activeSessionId) return;
 
       // Remove from local state
@@ -127,7 +134,9 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
     <div className="chat-panel">
       <div className="chat-header" data-tauri-drag-region="true">
         <div className="chat-header-left" data-tauri-drag-region="true">
-          <h2 className="chat-title" data-tauri-drag-region="true">{session.title || 'Untitled Session'}</h2>
+          <h2 className="chat-title" data-tauri-drag-region="true">
+            {session.title || 'Untitled Session'}
+          </h2>
           {session.cwd && (
             <span
               className="chat-cwd clickable"
@@ -140,9 +149,7 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
           )}
         </div>
         <div className="chat-header-right">
-          {session.status === 'running' && (
-            <span className="status-badge running">Running</span>
-          )}
+          {session.status === 'running' && <span className="status-badge running">Running</span>}
           {systemInfo && (
             <button
               className="info-btn"
@@ -201,7 +208,8 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
             {messageGroups.map((group, groupIndex) => {
               const isLastGroup = groupIndex === messageGroups.length - 1;
               const allResponses = group.responses;
-              const isWaitingForResponse = isLastGroup && allResponses.length === 0 && session.status === 'running';
+              const isWaitingForResponse =
+                isLastGroup && allResponses.length === 0 && session.status === 'running';
 
               return (
                 <div key={groupIndex} className="message-group">
@@ -212,7 +220,8 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
                     isSticky={true}
                   />
                   {allResponses.map((message, responseIndex) => {
-                    const isLastMessage = isLastGroup &&
+                    const isLastMessage =
+                      isLastGroup &&
                       responseIndex === allResponses.length - 1 &&
                       permissionRequests.length === 0;
                     return (
@@ -243,13 +252,15 @@ export function ChatPanel({ onPermissionResponse }: ChatPanelProps) {
               <DecisionPanel
                 key={request.toolUseId}
                 request={request}
-                onSubmit={(result, remember) => handlePermissionSubmit(
-                  request.toolUseId,
-                  result,
-                  request.toolName,
-                  request.input,
-                  remember
-                )}
+                onSubmit={(result, remember) =>
+                  handlePermissionSubmit(
+                    request.toolUseId,
+                    result,
+                    request.toolName,
+                    request.input,
+                    remember
+                  )
+                }
               />
             ))}
           </>

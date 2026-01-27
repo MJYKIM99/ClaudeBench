@@ -1,5 +1,6 @@
-import { useMemo, useState, useCallback } from 'react';
-import { ArrowUpDown, Search, Copy, Check, ArrowUp, ArrowDown } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, Copy, Search } from 'lucide-react';
+
 import './ArtifactPreview.css';
 
 interface CsvPreviewProps {
@@ -57,16 +58,15 @@ export function CsvPreview({ content }: CsvPreviewProps) {
 
   const rawData = useMemo(() => parseCSV(content), [content]);
 
-  const headers = rawData[0] || [];
-  const rows = rawData.slice(1);
+  const [headers, rows] = useMemo(() => {
+    return [rawData[0] ?? [], rawData.slice(1)] as const;
+  }, [rawData]);
 
   // Filter rows based on search term
   const filteredRows = useMemo(() => {
     if (!searchTerm) return rows;
     const term = searchTerm.toLowerCase();
-    return rows.filter(row =>
-      row.some(cell => cell.toLowerCase().includes(term))
-    );
+    return rows.filter((row) => row.some((cell) => cell.toLowerCase().includes(term)));
   }, [rows, searchTerm]);
 
   // Sort rows
@@ -94,7 +94,7 @@ export function CsvPreview({ content }: CsvPreviewProps) {
   const handleSort = (columnIndex: number, e: React.MouseEvent) => {
     e.stopPropagation();
     if (sortColumn === columnIndex) {
-      setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortColumn(columnIndex);
       setSortDirection('asc');
@@ -102,7 +102,7 @@ export function CsvPreview({ content }: CsvPreviewProps) {
   };
 
   const handleSelectColumn = (columnIndex: number) => {
-    setSelectedColumn(prev => prev === columnIndex ? null : columnIndex);
+    setSelectedColumn((prev) => (prev === columnIndex ? null : columnIndex));
     setCopied(false);
   };
 
@@ -111,7 +111,7 @@ export function CsvPreview({ content }: CsvPreviewProps) {
 
     const columnData = [
       headers[selectedColumn],
-      ...sortedRows.map(row => row[selectedColumn] || '')
+      ...sortedRows.map((row) => row[selectedColumn] || ''),
     ].join('\n');
 
     try {
@@ -162,7 +162,10 @@ export function CsvPreview({ content }: CsvPreviewProps) {
           <div className="csv-stats">
             {filteredRows.length} of {rows.length} rows
             {selectedColumn !== null && (
-              <span className="csv-selected-info"> · Column "{headers[selectedColumn]}" selected</span>
+              <span className="csv-selected-info">
+                {' '}
+                · Column "{headers[selectedColumn]}" selected
+              </span>
             )}
           </div>
         </div>
@@ -186,7 +189,11 @@ export function CsvPreview({ content }: CsvPreviewProps) {
                       title="Sort column"
                     >
                       {sortColumn === i ? (
-                        sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
+                        sortDirection === 'asc' ? (
+                          <ArrowUp size={12} />
+                        ) : (
+                          <ArrowDown size={12} />
+                        )
                       ) : (
                         <ArrowUpDown size={12} className="sort-icon" />
                       )}

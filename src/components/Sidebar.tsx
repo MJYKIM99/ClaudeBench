@@ -1,13 +1,17 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Folder, Trash2 } from 'lucide-react';
+
 import { useAppStore } from '../store/useAppStore';
-import { revealInFinder } from '../utils/pathUtils';
 import type { SessionView } from '../types';
+import { revealInFinder } from '../utils/pathUtils';
+
 import './Sidebar.css';
 
 interface SidebarProps {
   onNewSession: () => void;
   onDeleteSession: (sessionId: string) => void;
+  onSelectSession: () => void;
+  onOpenArtifacts: () => void;
   onOpenSettings: () => void;
   onOpenSkills: () => void;
 }
@@ -45,10 +49,18 @@ function formatTime(timestamp?: number): string {
   return date.toLocaleDateString();
 }
 
-export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings, onOpenSkills }: SidebarProps) {
+export function Sidebar({
+  onNewSession,
+  onDeleteSession,
+  onSelectSession,
+  onOpenArtifacts,
+  onOpenSettings,
+  onOpenSkills,
+}: SidebarProps) {
   const sessions = useAppStore((s) => s.sessions);
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const setActiveSessionId = useAppStore((s) => s.setActiveSessionId);
+  const artifactCount = activeSessionId ? (sessions[activeSessionId]?.artifacts ?? []).length : 0;
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false,
     x: 0,
@@ -111,6 +123,14 @@ export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings, onOpenS
     closeContextMenu();
   }, [contextMenu.sessionId, onDeleteSession, closeContextMenu]);
 
+  const handleSelectSession = useCallback(
+    (sessionId: string) => {
+      setActiveSessionId(sessionId);
+      onSelectSession();
+    },
+    [setActiveSessionId, onSelectSession]
+  );
+
   return (
     <aside className="sidebar" onClick={closeContextMenu}>
       <div className="sidebar-header" data-tauri-drag-region="true">
@@ -127,22 +147,20 @@ export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings, onOpenS
         <div className="nav-section">
           <h2 className="nav-section-title">SESSIONS</h2>
           {sessionList.length === 0 ? (
-            <div className="empty-state">
-              No sessions yet
-            </div>
+            <div className="empty-state">No sessions yet</div>
           ) : (
             <ul className="session-list">
               {sessionList.map((session) => (
                 <li key={session.id}>
                   <div
                     className={`session-item ${activeSessionId === session.id ? 'active' : ''}`}
-                    onClick={() => setActiveSessionId(session.id)}
+                    onClick={() => handleSelectSession(session.id)}
                     onContextMenu={(e) => handleContextMenu(e, session)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
-                        setActiveSessionId(session.id);
+                        handleSelectSession(session.id);
                       }
                     }}
                   >
@@ -153,9 +171,7 @@ export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings, onOpenS
                       />
                     </div>
                     <div className="session-info">
-                      <span className="session-title">
-                        {session.title || 'Untitled'}
-                      </span>
+                      <span className="session-title">{session.title || 'Untitled'}</span>
                       <span className="session-meta">
                         {session.cwd && (
                           <span className="session-cwd" title={session.cwd}>
@@ -177,15 +193,45 @@ export function Sidebar({ onNewSession, onDeleteSession, onOpenSettings, onOpenS
 
       <div className="sidebar-footer">
         <div className="footer-buttons">
+          <button className="footer-btn artifacts-btn" onClick={onOpenArtifacts} title="Artifacts">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <rect x="3" y="3" width="18" height="14" rx="2" />
+              <path d="M7 21h10" />
+              <path d="M12 17v4" />
+            </svg>
+            Artifacts
+            {artifactCount > 0 && <span className="footer-badge">{artifactCount}</span>}
+          </button>
           <button className="footer-btn skills-btn" onClick={onOpenSkills} title="Skills">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
             </svg>
             Skills
           </button>
           <button className="footer-btn settings-btn" onClick={onOpenSettings} title="Settings">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>

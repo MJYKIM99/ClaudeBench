@@ -1,5 +1,3 @@
-import './SkillPreview.css';
-
 import type { SkillParameterValues } from '../../types';
 
 interface SkillPreviewProps {
@@ -8,7 +6,6 @@ interface SkillPreviewProps {
 }
 
 export function SkillPreview({ template, values }: SkillPreviewProps) {
-  // Expand template with current values, highlighting placeholders
   const renderTemplate = () => {
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
@@ -16,13 +13,8 @@ export function SkillPreview({ template, values }: SkillPreviewProps) {
     let match;
 
     while ((match = regex.exec(template)) !== null) {
-      // Add text before the placeholder
       if (match.index > lastIndex) {
-        parts.push(
-          <span key={`text-${lastIndex}`} className="preview-text">
-            {template.slice(lastIndex, match.index)}
-          </span>
-        );
+        parts.push(<span key={`text-${lastIndex}`}>{template.slice(lastIndex, match.index)}</span>);
       }
 
       const paramName = match[1];
@@ -34,16 +26,20 @@ export function SkillPreview({ template, values }: SkillPreviewProps) {
           : null;
 
       if (displayValue) {
-        // Show the filled value
         parts.push(
-          <span key={`value-${match.index}`} className="preview-value">
+          <span
+            key={`value-${match.index}`}
+            className="rounded bg-[var(--color-primary-light)] px-1 text-[var(--color-primary)]"
+          >
             {displayValue}
           </span>
         );
       } else {
-        // Show the placeholder
         parts.push(
-          <span key={`placeholder-${match.index}`} className="preview-placeholder">
+          <span
+            key={`placeholder-${match.index}`}
+            className="rounded bg-amber-500/20 px-1 font-medium text-amber-600"
+          >
             {`{{${paramName}}}`}
           </span>
         );
@@ -52,17 +48,23 @@ export function SkillPreview({ template, values }: SkillPreviewProps) {
       lastIndex = match.index + match[0].length;
     }
 
-    // Add remaining text
     if (lastIndex < template.length) {
-      parts.push(
-        <span key={`text-${lastIndex}`} className="preview-text">
-          {template.slice(lastIndex)}
-        </span>
-      );
+      parts.push(<span key={`text-${lastIndex}`}>{template.slice(lastIndex)}</span>);
     }
 
     return parts;
   };
 
-  return <div className="skill-preview">{renderTemplate()}</div>;
+  return (
+    <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-light)]">
+      <div className="border-b border-[var(--color-border)] bg-black/5 px-3 py-2">
+        <span className="text-xs font-medium tracking-wide text-[var(--color-mid-gray)] uppercase">
+          Preview
+        </span>
+      </div>
+      <div className="p-3 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap text-[var(--color-text)]">
+        {renderTemplate()}
+      </div>
+    </div>
+  );
 }

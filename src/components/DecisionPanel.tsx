@@ -1,10 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
+
 import type { PermissionRequest } from '../types';
+
 import './DecisionPanel.css';
 
 interface DecisionPanelProps {
   request: PermissionRequest & { isProtectedPath?: boolean };
-  onSubmit: (result: { behavior: 'allow' | 'deny'; updatedInput?: unknown }, remember?: boolean) => void;
+  onSubmit: (
+    result: { behavior: 'allow' | 'deny'; updatedInput?: unknown },
+    remember?: boolean
+  ) => void;
 }
 
 interface AskUserQuestionInput {
@@ -20,7 +25,11 @@ interface AskUserQuestionInput {
 }
 
 // Helper to render tool-specific details
-function renderToolDetails(toolName: string, input: Record<string, unknown>, isProtectedPath?: boolean) {
+function renderToolDetails(
+  toolName: string,
+  input: Record<string, unknown>,
+  isProtectedPath?: boolean
+) {
   switch (toolName) {
     case 'Bash':
       return (
@@ -49,9 +58,7 @@ function renderToolDetails(toolName: string, input: Record<string, unknown>, isP
             <code>{String(input.file_path || '')}</code>
           </div>
           {isProtectedPath && (
-            <p className="warning-text">
-              This is a protected location. Proceed with caution.
-            </p>
+            <p className="warning-text">This is a protected location. Proceed with caution.</p>
           )}
         </div>
       );
@@ -70,18 +77,22 @@ function renderToolDetails(toolName: string, input: Record<string, unknown>, isP
             <div className="edit-preview">
               <div className="edit-section remove">
                 <span className="edit-label">Remove:</span>
-                <pre>{String(input.old_string).slice(0, 200)}{String(input.old_string).length > 200 ? '...' : ''}</pre>
+                <pre>
+                  {String(input.old_string).slice(0, 200)}
+                  {String(input.old_string).length > 200 ? '...' : ''}
+                </pre>
               </div>
               <div className="edit-section add">
                 <span className="edit-label">Add:</span>
-                <pre>{String(input.new_string || '').slice(0, 200)}{String(input.new_string || '').length > 200 ? '...' : ''}</pre>
+                <pre>
+                  {String(input.new_string || '').slice(0, 200)}
+                  {String(input.new_string || '').length > 200 ? '...' : ''}
+                </pre>
               </div>
             </div>
           )}
           {isProtectedPath && (
-            <p className="warning-text">
-              This is a protected location. Proceed with caution.
-            </p>
+            <p className="warning-text">This is a protected location. Proceed with caution.</p>
           )}
         </div>
       );
@@ -139,8 +150,8 @@ export function DecisionPanel({ request, onSubmit }: DecisionPanelProps) {
 
   // Check if all questions have answers
   const allQuestionsAnswered = useMemo(() => {
-    return questions.every((_, idx) =>
-      (selections[idx] && selections[idx].size > 0) || !!customInputs[idx]
+    return questions.every(
+      (_, idx) => (selections[idx] && selections[idx].size > 0) || !!customInputs[idx]
     );
   }, [questions, selections, customInputs]);
 
@@ -279,7 +290,9 @@ export function DecisionPanel({ request, onSubmit }: DecisionPanelProps) {
         </div>
 
         <div className="decision-actions">
-          <button className="btn-deny" onClick={handleDeny}>Skip</button>
+          <button className="btn-deny" onClick={handleDeny}>
+            Skip
+          </button>
           <button className="btn-allow" onClick={handleSubmit} disabled={!currentHasAnswer}>
             Submit
           </button>
@@ -309,7 +322,7 @@ export function DecisionPanel({ request, onSubmit }: DecisionPanelProps) {
             <button
               key={idx}
               className={`progress-dot ${idx === currentQuestionIndex ? 'active' : ''} ${
-                (selections[idx]?.size > 0 || customInputs[idx]) ? 'completed' : ''
+                selections[idx]?.size > 0 || customInputs[idx] ? 'completed' : ''
               }`}
               onClick={() => setCurrentQuestionIndex(idx)}
               aria-label={`Go to question ${idx + 1}`}
@@ -325,24 +338,38 @@ export function DecisionPanel({ request, onSubmit }: DecisionPanelProps) {
             <div className="question-text">{currentQuestion.question}</div>
 
             <div className="options-list">
-              {currentQuestion.options.map((opt: { label: string; description?: string }, optIdx: number) => {
-                const isSelected = selections[currentQuestionIndex]?.has(optIdx) || false;
-                return (
-                  <button
-                    key={optIdx}
-                    className={`option-btn ${isSelected ? 'selected' : ''}`}
-                    onClick={() => handleOptionClick(currentQuestionIndex, optIdx, currentQuestion.multiSelect || false)}
-                  >
-                    <span className="option-check">
-                      {currentQuestion.multiSelect ? (isSelected ? '☑' : '☐') : isSelected ? '◉' : '○'}
-                    </span>
-                    <div className="option-content">
-                      <span className="option-label">{opt.label}</span>
-                      {opt.description && <span className="option-desc">{opt.description}</span>}
-                    </div>
-                  </button>
-                );
-              })}
+              {currentQuestion.options.map(
+                (opt: { label: string; description?: string }, optIdx: number) => {
+                  const isSelected = selections[currentQuestionIndex]?.has(optIdx) || false;
+                  return (
+                    <button
+                      key={optIdx}
+                      className={`option-btn ${isSelected ? 'selected' : ''}`}
+                      onClick={() =>
+                        handleOptionClick(
+                          currentQuestionIndex,
+                          optIdx,
+                          currentQuestion.multiSelect || false
+                        )
+                      }
+                    >
+                      <span className="option-check">
+                        {currentQuestion.multiSelect
+                          ? isSelected
+                            ? '☑'
+                            : '☐'
+                          : isSelected
+                            ? '◉'
+                            : '○'}
+                      </span>
+                      <div className="option-content">
+                        <span className="option-label">{opt.label}</span>
+                        {opt.description && <span className="option-desc">{opt.description}</span>}
+                      </div>
+                    </button>
+                  );
+                }
+              )}
             </div>
 
             <div className="custom-input-wrapper">
@@ -367,7 +394,9 @@ export function DecisionPanel({ request, onSubmit }: DecisionPanelProps) {
         </div>
 
         <div className="decision-actions">
-          <button className="btn-deny" onClick={handleDeny}>Skip</button>
+          <button className="btn-deny" onClick={handleDeny}>
+            Skip
+          </button>
 
           <div className="nav-buttons">
             {!isFirstQuestion && (
@@ -408,7 +437,11 @@ export function DecisionPanel({ request, onSubmit }: DecisionPanelProps) {
         </span>
       </div>
 
-      {renderToolDetails(request.toolName, input as Record<string, unknown>, request.isProtectedPath)}
+      {renderToolDetails(
+        request.toolName,
+        input as Record<string, unknown>,
+        request.isProtectedPath
+      )}
 
       <div className="remember-choice">
         <label className="remember-label">
@@ -425,7 +458,12 @@ export function DecisionPanel({ request, onSubmit }: DecisionPanelProps) {
         <button className="btn-deny" onClick={() => onSubmit({ behavior: 'deny' }, rememberChoice)}>
           Deny
         </button>
-        <button className="btn-allow" onClick={() => onSubmit({ behavior: 'allow', updatedInput: request.input }, rememberChoice)}>
+        <button
+          className="btn-allow"
+          onClick={() =>
+            onSubmit({ behavior: 'allow', updatedInput: request.input }, rememberChoice)
+          }
+        >
           Allow
         </button>
       </div>

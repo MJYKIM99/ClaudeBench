@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ModelSelectorProps {
   value: string;
@@ -37,8 +37,21 @@ export function ModelSelector({ value, onChange, disabled }: ModelSelectorProps)
       >
         <span className="selector-icon">{currentModel.icon}</span>
         <span className="selector-label">{currentModel.label}</span>
-        <svg className="selector-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <svg
+          className="selector-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="currentColor"
+        >
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
         </svg>
       </button>
 

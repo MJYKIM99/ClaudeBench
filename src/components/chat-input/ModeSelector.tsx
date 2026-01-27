@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
 import type { SessionMode } from '../../types';
 
 interface ModeSelectorProps {
@@ -37,8 +38,21 @@ export function ModeSelector({ value, onChange, disabled }: ModeSelectorProps) {
       >
         <span className="selector-icon">{currentMode.icon}</span>
         <span className="selector-label">{currentMode.label}</span>
-        <svg className="selector-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <svg
+          className="selector-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="currentColor"
+        >
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
         </svg>
       </button>
 

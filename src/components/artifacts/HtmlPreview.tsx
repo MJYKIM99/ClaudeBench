@@ -62,11 +62,6 @@ export function HtmlPreview({ html }: HtmlPreviewProps) {
   }, [html, isSvg]);
 
   return (
-    <iframe
-      className="html-preview"
-      srcDoc={srcDoc}
-      sandbox="allow-scripts"
-      title="HTML Preview"
-    />
+    <iframe className="html-preview" srcDoc={srcDoc} sandbox="allow-scripts" title="HTML Preview" />
   );
 }

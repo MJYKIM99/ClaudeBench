@@ -1,0 +1,7 @@
+dist
+node_modules
+src-tauri
+sidecar/dist
+sidecar/node_modules
+*.md
+package-lock.json

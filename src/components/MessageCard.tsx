@@ -1,13 +1,24 @@
-import { Component, ReactNode, useState, useCallback } from 'react';
+import { Component, ReactNode, useCallback, useState } from 'react';
+import { Check, Copy, Eye } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Eye, Copy, Check } from 'lucide-react';
-import { TextShimmer } from './tool-display';
-import { revealInFinder } from '../utils/pathUtils';
-import { saveArtifact } from '../utils/fileUtils';
+
 import { useAppStore } from '../store/useAppStore';
-import type { Artifact } from './artifacts';
-import type { StreamMessage, AssistantMessage, UserMessage, ResultMessage, SystemMessage, ToolUseContent, ToolResultContent } from '../types';
+import type {
+  Artifact,
+  AssistantMessage,
+  MessageContent,
+  ResultMessage,
+  StreamMessage,
+  SystemMessage,
+  ToolResultContent,
+  ToolUseContent,
+  UserMessage,
+} from '../types';
+import { saveArtifact } from '../utils/fileUtils';
+import { revealInFinder } from '../utils/pathUtils';
+import { TextShimmer } from './tool-display';
+
 import './MessageCard.css';
 
 interface MessageCardProps {
@@ -18,55 +29,82 @@ interface MessageCardProps {
 }
 
 // Status indicator dot
-function StatusDot({ variant = 'accent', isActive = false }: { variant?: 'accent' | 'success' | 'error'; isActive?: boolean }) {
+function StatusDot({
+  variant = 'accent',
+  isActive = false,
+}: {
+  variant?: 'accent' | 'success' | 'error';
+  isActive?: boolean;
+}) {
   const colorClass = variant === 'success' ? 'success' : variant === 'error' ? 'error' : 'accent';
-  return (
-    <span className={`status-dot ${colorClass} ${isActive ? 'active' : ''}`} />
-  );
+  return <span className={`status-dot ${colorClass} ${isActive ? 'active' : ''}`} />;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function getStringValue(record: Record<string, unknown>, key: string): string | null {
+  const value = record[key];
+  return typeof value === 'string' ? value : null;
 }
 
 // Get tool-specific info for display
 function getToolInfo(tool: ToolUseContent): string | null {
-  const input = tool.input as Record<string, any>;
+  const input = tool.input;
   switch (tool.name) {
     case 'Bash':
-      return input?.command || input?.description || null;
+      return getStringValue(input, 'command') ?? getStringValue(input, 'description');
     case 'Read':
     case 'Write':
     case 'Edit':
-      return input?.file_path || null;
+      return getStringValue(input, 'file_path');
     case 'Glob':
     case 'Grep':
-      return input?.pattern || null;
+      return getStringValue(input, 'pattern');
     case 'Task':
-      return input?.description || null;
+      return getStringValue(input, 'description');
     case 'WebFetch':
-      return input?.url || null;
+      return getStringValue(input, 'url');
     case 'WebSearch':
-      return input?.query || null;
-    case 'TodoWrite':
-      return `${(input?.todos as any[])?.length || 0} items`;
+      return getStringValue(input, 'query');
+    case 'TodoWrite': {
+      const todos = input['todos'];
+      const count = Array.isArray(todos) ? todos.length : 0;
+      return `${count} items`;
+    }
     case 'NotebookEdit':
-      return input?.notebook_path || null;
-    case 'AskUserQuestion':
-      const questions = input?.questions as any[] || [];
-      return questions[0]?.question || `${questions.length} questions`;
+      return getStringValue(input, 'notebook_path');
+    case 'AskUserQuestion': {
+      const questions = input['questions'];
+      if (!Array.isArray(questions)) return '0 questions';
+
+      const first = questions[0];
+      if (isRecord(first)) {
+        const question = first['question'];
+        if (typeof question === 'string') return question;
+      }
+      return `${questions.length} questions`;
+    }
     case 'EnterPlanMode':
     case 'ExitPlanMode':
       return null;
     case 'Skill':
-      return input?.skill || null;
+      return getStringValue(input, 'skill');
     case 'KillShell':
-      return input?.shell_id || null;
+      return getStringValue(input, 'shell_id');
     case 'TaskOutput':
-      return input?.task_id || null;
+      return getStringValue(input, 'task_id');
     default:
       return null;
   }
 }
 
 // Error boundary for individual message cards
-class MessageErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error?: Error }> {
+class MessageErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error?: Error }
+> {
   constructor(props: { children: ReactNode }) {
     super(props);
     this.state = { hasError: false };
@@ -92,39 +130,58 @@ class MessageErrorBoundary extends Component<{ children: ReactNode }, { hasError
   }
 }
 
-export function MessageCard({ message, isLast = false, isRunning = false, isSticky = false }: MessageCardProps) {
+export function MessageCard({
+  message,
+  isLast = false,
+  isRunning = false,
+  isSticky = false,
+}: MessageCardProps) {
   if (!message || typeof message !== 'object') {
     return null;
   }
 
   return (
     <MessageErrorBoundary>
-      <MessageCardInner message={message} isLast={isLast} isRunning={isRunning} isSticky={isSticky} />
+      <MessageCardInner
+        message={message}
+        isLast={isLast}
+        isRunning={isRunning}
+        isSticky={isSticky}
+      />
     </MessageErrorBoundary>
   );
 }
 
 function MessageCardInner({ message, isLast, isRunning, isSticky }: MessageCardProps) {
-  const type = (message as any).type;
   const showIndicator = isLast && isRunning;
 
-  switch (type) {
+  switch (message.type) {
     case 'user_prompt':
-      return <UserPromptCard prompt={(message as any).prompt} showIndicator={showIndicator} isSticky={isSticky} />;
+      return (
+        <UserPromptCard prompt={message.prompt} showIndicator={showIndicator} isSticky={isSticky} />
+      );
     case 'system':
-      return <SystemCard message={message as SystemMessage} showIndicator={showIndicator} />;
+      return <SystemCard message={message} showIndicator={showIndicator} />;
     case 'assistant':
-      return <AssistantCard message={message as AssistantMessage} showIndicator={showIndicator} />;
+      return <AssistantCard message={message} showIndicator={showIndicator} />;
     case 'user':
-      return <ToolResultCard message={message as UserMessage} />;
+      return <ToolResultCard message={message} />;
     case 'result':
-      return <ResultCard message={message as ResultMessage} />;
+      return <ResultCard message={message} />;
     default:
       return null;
   }
 }
 
-function UserPromptCard({ prompt, showIndicator, isSticky }: { prompt: string; showIndicator?: boolean; isSticky?: boolean }) {
+function UserPromptCard({
+  prompt,
+  showIndicator,
+  isSticky,
+}: {
+  prompt: string;
+  showIndicator?: boolean;
+  isSticky?: boolean;
+}) {
   const stickyClass = isSticky ? 'sticky' : '';
   return (
     <div className={`message-card user-prompt ${stickyClass}`}>
@@ -139,7 +196,13 @@ function UserPromptCard({ prompt, showIndicator, isSticky }: { prompt: string; s
   );
 }
 
-function SystemCard({ message, showIndicator }: { message: SystemMessage; showIndicator?: boolean }) {
+function SystemCard({
+  message,
+  showIndicator,
+}: {
+  message: SystemMessage;
+  showIndicator?: boolean;
+}) {
   return (
     <div className="message-card system-init">
       <div className="message-header">
@@ -177,14 +240,25 @@ function SystemCard({ message, showIndicator }: { message: SystemMessage; showIn
 }
 
 // Extract previewable artifacts from tool_use blocks
-function extractPreviewableArtifacts(content: any[]): Array<{ title: string; type: Artifact['type']; language: string; content: string }> {
-  const artifacts: Array<{ title: string; type: Artifact['type']; language: string; content: string }> = [];
+function extractPreviewableArtifacts(content: MessageContent[]): Array<{
+  title: string;
+  type: Artifact['type'];
+  language: string;
+  content: string;
+  filePath: string;
+}> {
+  const artifacts: Array<{
+    title: string;
+    type: Artifact['type'];
+    language: string;
+    content: string;
+    filePath: string;
+  }> = [];
 
   for (const block of content) {
-    if (block?.type === 'tool_use' && block?.name === 'Write') {
-      const input = block.input as Record<string, any>;
-      const filePath = input?.file_path as string || '';
-      const fileContent = input?.content as string || '';
+    if (block.type === 'tool_use' && block.name === 'Write') {
+      const filePath = getStringValue(block.input, 'file_path') ?? '';
+      const fileContent = getStringValue(block.input, 'content') ?? '';
 
       if (!filePath || !fileContent) continue;
 
@@ -201,9 +275,11 @@ function extractPreviewableArtifacts(content: any[]): Array<{ title: string; typ
       // CSV files
       else if (ext === 'csv') previewType = 'csv';
       // Image files (base64 data URLs or file paths)
-      else if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(ext || '')) previewType = 'image';
+      else if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(ext || ''))
+        previewType = 'image';
       // Check content for HTML
-      else if (fileContent.trim().startsWith('<!DOCTYPE') || fileContent.trim().startsWith('<html')) previewType = 'html';
+      else if (fileContent.trim().startsWith('<!DOCTYPE') || fileContent.trim().startsWith('<html'))
+        previewType = 'html';
 
       if (previewType) {
         artifacts.push({
@@ -211,6 +287,7 @@ function extractPreviewableArtifacts(content: any[]): Array<{ title: string; typ
           type: previewType,
           language: ext || previewType,
           content: fileContent,
+          filePath,
         });
       }
     }
@@ -219,31 +296,42 @@ function extractPreviewableArtifacts(content: any[]): Array<{ title: string; typ
   return artifacts;
 }
 
-function AssistantCard({ message, showIndicator }: { message: AssistantMessage; showIndicator?: boolean }) {
-  const content = message?.message?.content;
-
-  if (!content || !Array.isArray(content)) {
-    return null;
-  }
+function AssistantCard({
+  message,
+  showIndicator,
+}: {
+  message: AssistantMessage;
+  showIndicator?: boolean;
+}) {
+  const content = message.message?.content;
+  if (!content || content.length === 0) return null;
 
   // Extract previewable artifacts for display at the end
   const previewableArtifacts = !showIndicator ? extractPreviewableArtifacts(content) : [];
 
   return (
     <>
-      {content.map((block: any, index: number) => {
+      {content.map((block, index) => {
         const isLastContent = index === content.length - 1;
         const showDot = isLastContent && showIndicator;
 
-        if (block?.type === 'thinking') {
-          return <ThinkingBlock key={`thinking-${index}`} text={block.thinking || ''} showIndicator={showDot} />;
+        if (block.type === 'thinking') {
+          return (
+            <ThinkingBlock
+              key={`thinking-${index}`}
+              text={block.thinking || ''}
+              showIndicator={showDot}
+            />
+          );
         }
 
-        if (block?.type === 'text') {
-          return <TextBlock key={`text-${index}`} text={block.text || ''} showIndicator={showDot} />;
+        if (block.type === 'text') {
+          return (
+            <TextBlock key={`text-${index}`} text={block.text || ''} showIndicator={showDot} />
+          );
         }
 
-        if (block?.type === 'tool_use') {
+        if (block.type === 'tool_use') {
           return <ToolUseCard key={`tool-${index}`} tool={block} showIndicator={showDot} />;
         }
 
@@ -264,30 +352,36 @@ function TextBlock({ text, showIndicator }: { text: string; showIndicator?: bool
   const sessions = useAppStore((s) => s.sessions);
   const cwd = activeSessionId ? sessions[activeSessionId]?.cwd : null;
 
-  const handleCopy = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  }, [text]);
+  const handleCopy = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+      }
+    },
+    [text]
+  );
 
-  const handleSave = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!cwd) return;
+  const handleSave = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!cwd) return;
 
-    try {
-      const filePath = await saveArtifact(cwd, text);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-      revealInFinder(filePath);
-    } catch (err) {
-      console.error('Failed to save:', err);
-    }
-  }, [text, cwd]);
+      try {
+        const filePath = await saveArtifact(cwd, text);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+        revealInFinder(filePath);
+      } catch (err) {
+        console.error('Failed to save:', err);
+      }
+    },
+    [text, cwd]
+  );
 
   if (!text) return null;
 
@@ -324,8 +418,7 @@ function TextBlock({ text, showIndicator }: { text: string; showIndicator?: bool
 
 function MarkdownBlock({ text }: { text: string }) {
   const setPreviewArtifact = useAppStore((s) => s.setPreviewArtifact);
-
-  if (!text) return null;
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
 
   const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // 检测 Cmd+Click 在代码块或路径上
@@ -345,15 +438,32 @@ function MarkdownBlock({ text }: { text: string }) {
     }
   }, []);
 
-  const handlePreview = useCallback((language: string, code: string) => {
-    let type: Artifact['type'] = 'code';
-    if (language === 'html' || language === 'svg') {
-      type = 'html';
-    } else if (language === 'mermaid') {
-      type = 'mermaid';
-    }
-    setPreviewArtifact({ type, language, content: code });
-  }, [setPreviewArtifact]);
+  const handlePreview = useCallback(
+    (language: string, code: string) => {
+      let type: Artifact['type'] = 'code';
+      if (language === 'html' || language === 'svg') {
+        type = 'html';
+      } else if (language === 'mermaid') {
+        type = 'mermaid';
+      }
+      setPreviewArtifact({
+        id:
+          typeof crypto !== 'undefined' && 'randomUUID' in crypto
+            ? crypto.randomUUID()
+            : `${Date.now()}`,
+        sessionId: activeSessionId || undefined,
+        type,
+        language,
+        content: code,
+        title: language ? `${language.toUpperCase()} Preview` : 'Code Preview',
+        createdAt: Date.now(),
+        source: 'user',
+      });
+    },
+    [activeSessionId, setPreviewArtifact]
+  );
+
+  if (!text) return null;
 
   return (
     <div className="markdown-block" onClick={handleClick}>
@@ -413,17 +523,67 @@ function MarkdownBlock({ text }: { text: string }) {
 }
 
 // Previewable artifacts card - shown at end of assistant message
-function PreviewableArtifactsCard({ artifacts }: { artifacts: Array<{ title: string; type: Artifact['type']; language: string; content: string }> }) {
+function PreviewableArtifactsCard({
+  artifacts,
+}: {
+  artifacts: Array<{
+    title: string;
+    type: Artifact['type'];
+    language: string;
+    content: string;
+    filePath: string;
+  }>;
+}) {
   const setPreviewArtifact = useAppStore((s) => s.setPreviewArtifact);
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const sessionArtifacts = useAppStore((s) =>
+    activeSessionId ? (s.sessions[activeSessionId]?.artifacts ?? []) : []
+  );
 
-  const handlePreview = useCallback((artifact: { title: string; type: Artifact['type']; language: string; content: string }) => {
-    setPreviewArtifact({
-      type: artifact.type,
-      language: artifact.language,
-      content: artifact.content,
-      title: artifact.title,
-    });
-  }, [setPreviewArtifact]);
+  const handlePreview = useCallback(
+    (artifact: {
+      title: string;
+      type: Artifact['type'];
+      language: string;
+      content: string;
+      filePath: string;
+    }) => {
+      let existing: Artifact | undefined;
+      if (activeSessionId) {
+        for (let i = sessionArtifacts.length - 1; i >= 0; i--) {
+          const candidate = sessionArtifacts[i];
+          if (
+            candidate.type === artifact.type &&
+            candidate.meta?.['filePath'] === artifact.filePath
+          ) {
+            existing = candidate;
+            break;
+          }
+        }
+      }
+
+      if (existing) {
+        setPreviewArtifact(existing);
+        return;
+      }
+
+      setPreviewArtifact({
+        id:
+          typeof crypto !== 'undefined' && 'randomUUID' in crypto
+            ? crypto.randomUUID()
+            : `${Date.now()}`,
+        sessionId: activeSessionId || undefined,
+        type: artifact.type,
+        language: artifact.language,
+        content: artifact.content,
+        title: artifact.title,
+        createdAt: Date.now(),
+        source: 'user',
+        meta: { filePath: artifact.filePath },
+      });
+    },
+    [activeSessionId, sessionArtifacts, setPreviewArtifact]
+  );
 
   return (
     <div className="message-card preview-artifacts-card">
@@ -456,16 +616,19 @@ function PreviewableArtifactsCard({ artifacts }: { artifacts: Array<{ title: str
 function CopyButton({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  }, [code]);
+  const handleCopy = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(code);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+      }
+    },
+    [code]
+  );
 
   return (
     <button className="code-action-btn" onClick={handleCopy} title="Copy code">
@@ -482,7 +645,10 @@ function ThinkingBlock({ text, showIndicator }: { text: string; showIndicator?: 
   const preview = text.slice(0, 100);
 
   return (
-    <div className={`message-card thinking-card ${showIndicator ? 'streaming' : ''}`} onClick={() => setIsOpen(!isOpen)}>
+    <div
+      className={`message-card thinking-card ${showIndicator ? 'streaming' : ''}`}
+      onClick={() => setIsOpen(!isOpen)}
+    >
       <div className="thinking-header">
         {showIndicator && <StatusDot variant="success" isActive />}
         <span className="thinking-icon">{isOpen ? '▼' : '▶'}</span>
@@ -509,8 +675,24 @@ function ToolUseCard({ tool, showIndicator }: { tool: ToolUseContent; showIndica
   const statusIcon = showIndicator ? (
     <span className="tool-status-icon running">
       <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-        <circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="20" strokeDashoffset="5">
-          <animateTransform attributeName="transform" type="rotate" from="0 6 6" to="360 6 6" dur="1s" repeatCount="indefinite" />
+        <circle
+          cx="6"
+          cy="6"
+          r="5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeDasharray="20"
+          strokeDashoffset="5"
+        >
+          <animateTransform
+            attributeName="transform"
+            type="rotate"
+            from="0 6 6"
+            to="360 6 6"
+            dur="1s"
+            repeatCount="indefinite"
+          />
         </circle>
       </svg>
     </span>
@@ -523,7 +705,10 @@ function ToolUseCard({ tool, showIndicator }: { tool: ToolUseContent; showIndica
   );
 
   return (
-    <div className="message-card tool-use-card tool-use-compact" onClick={() => setIsExpanded(!isExpanded)}>
+    <div
+      className="message-card tool-use-card tool-use-compact"
+      onClick={() => setIsExpanded(!isExpanded)}
+    >
       <div className="tool-header-compact">
         {statusIcon}
         {showIndicator ? (
@@ -558,8 +743,8 @@ function ToolResultCard({ message }: { message: UserMessage }) {
     return null;
   }
 
-  const successCount = results.filter((r: any) => !r?.is_error).length;
-  const errorCount = results.filter((r: any) => r?.is_error).length;
+  const successCount = results.filter((r) => !r.is_error).length;
+  const errorCount = results.filter((r) => r.is_error).length;
   const hasError = errorCount > 0;
 
   // Simple summary
@@ -584,11 +769,12 @@ function ToolResultCard({ message }: { message: UserMessage }) {
 
             let content = '';
             try {
-              content = typeof result.content === 'string'
-                ? result.content
-                : Array.isArray(result.content)
-                  ? result.content.map((c: any) => c?.text || '').join('\n')
-                  : JSON.stringify(result.content);
+              content =
+                typeof result.content === 'string'
+                  ? result.content
+                  : Array.isArray(result.content)
+                    ? result.content.map((c) => c.text).join('\n')
+                    : JSON.stringify(result.content);
             } catch {
               content = '[Unable to parse]';
             }

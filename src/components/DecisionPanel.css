@@ -456,7 +456,7 @@
   color: var(--color-text-secondary);
 }
 
-.remember-label input[type="checkbox"] {
+.remember-label input[type='checkbox'] {
   width: 16px;
   height: 16px;
   accent-color: var(--color-primary);

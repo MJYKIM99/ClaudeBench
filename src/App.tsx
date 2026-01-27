@@ -1,22 +1,26 @@
-import { useEffect, useCallback, useState, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { Sidebar } from './components/Sidebar';
-import { ChatPanel } from './components/ChatPanel';
-import { ChatInputArea } from './components/chat-input';
-import { WelcomeView } from './components/WelcomeView';
-import { SettingsPanel } from './components/SettingsPanel';
-import { SkillsPage } from './components/skills';
-import { SetupDialog } from './components/SetupDialog';
+
 import { ArtifactPreview } from './components/artifacts';
+import { ArtifactsPanel } from './components/ArtifactsPanel';
+import { ChatInputArea } from './components/chat-input';
+import { ChatPanel } from './components/ChatPanel';
+import { SettingsPanel } from './components/SettingsPanel';
+import { SetupDialog } from './components/SetupDialog';
+import { Sidebar } from './components/Sidebar';
+import { SkillsPage } from './components/skills';
+import { WelcomeView } from './components/WelcomeView';
 import { useSidecar } from './hooks/useSidecar';
 import { useAppStore } from './store/useAppStore';
 import type { PermissionResult } from './types';
+
 import './App.css';
 
 function App() {
   const { start, send } = useSidecar();
   const [showSettings, setShowSettings] = useState(false);
+  const [showArtifacts, setShowArtifacts] = useState(false);
   const [showSkills, setShowSkills] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [envStatus, setEnvStatus] = useState<{
@@ -114,13 +118,6 @@ function App() {
     return () => window.removeEventListener('message', handleMessage);
   }, [send]);
 
-  // Close skills page when user selects a session
-  useEffect(() => {
-    if (activeSessionId && showSkills) {
-      setShowSkills(false);
-    }
-  }, [activeSessionId, showSkills]);
-
   // Auto-load session history when switching sessions
   useEffect(() => {
     if (!activeSessionId) return;
@@ -138,20 +135,36 @@ function App() {
   const handleNewSession = useCallback(() => {
     // Clear active session to show welcome page
     setActiveSessionId(null);
+    setShowSkills(false);
+    setShowArtifacts(false);
+    setShowSettings(false);
   }, [setActiveSessionId]);
 
   const handleOpenSettings = useCallback(() => {
     setShowSettings(true);
     setShowSkills(false);
+    setShowArtifacts(false);
   }, []);
 
   const handleOpenSkills = useCallback(() => {
     setShowSkills(true);
     setShowSettings(false);
+    setShowArtifacts(false);
   }, []);
 
   const handleCloseSkills = useCallback(() => {
     setShowSkills(false);
+  }, []);
+
+  const handleOpenArtifacts = useCallback(() => {
+    setShowArtifacts(true);
+    setShowSettings(false);
+    setShowSkills(false);
+  }, []);
+
+  const handleSelectSession = useCallback(() => {
+    setShowSkills(false);
+    setShowArtifacts(false);
   }, []);
 
   const handleInstallBundledSkills = useCallback(() => {
@@ -170,72 +183,78 @@ function App() {
     setActiveSessionId(null);
   }, [setActiveSessionId]);
 
-  const handleDeleteSession = useCallback((sessionId: string) => {
-    send({ type: 'session.delete', payload: { sessionId } });
-  }, [send]);
+  const handleDeleteSession = useCallback(
+    (sessionId: string) => {
+      send({ type: 'session.delete', payload: { sessionId } });
+    },
+    [send]
+  );
 
   const setPendingStart = useAppStore((s) => s.setPendingStart);
 
   const attachments = useAppStore((s) => s.attachments);
   const clearAttachments = useAppStore((s) => s.clearAttachments);
 
-  const handleSendMessage = useCallback((prompt: string) => {
-    // 如果没有选择工作目录，提示用户先选择
-    if (!cwd) {
-      // 触发 RepoSelector 展开并显示提示
-      useAppStore.getState().setShowCwdPrompt(true);
-      return;
-    }
+  const handleSendMessage = useCallback(
+    (prompt: string) => {
+      // 如果没有选择工作目录，提示用户先选择
+      if (!cwd) {
+        // 触发 RepoSelector 展开并显示提示
+        useAppStore.getState().setShowCwdPrompt(true);
+        return;
+      }
 
-    const currentCwd = cwd;
-    const currentAttachments = attachments.length > 0 ? [...attachments] : undefined;
+      const currentCwd = cwd;
+      const currentAttachments = attachments.length > 0 ? [...attachments] : undefined;
 
-    // Clear attachments after capturing them
-    if (currentAttachments) {
-      clearAttachments();
-    }
+      // Clear attachments after capturing them
+      if (currentAttachments) {
+        clearAttachments();
+      }
 
-    if (!activeSessionId) {
-      // No active session - start a new one from welcome page
-      setPendingStart(true);
-      send({
-        type: 'session.start',
-        payload: {
-          title: prompt.slice(0, 50),
-          prompt,
-          cwd: currentCwd,
-          attachments: currentAttachments,
-        },
-      });
-      return;
-    }
+      if (!activeSessionId) {
+        // No active session - start a new one from welcome page
+        setPendingStart(true);
+        send({
+          type: 'session.start',
+          payload: {
+            title: prompt.slice(0, 50),
+            prompt,
+            cwd: currentCwd,
+            attachments: currentAttachments,
+          },
+        });
+        return;
+      }
 
-    const session = sessions[activeSessionId];
-    if (!session) return;
+      const session = sessions[activeSessionId];
+      if (!session) return;
 
-    if (session.messages.length === 0) {
-      // First message - start session
-      send({
-        type: 'session.start',
-        payload: {
-          title: prompt.slice(0, 50),
-          prompt,
-          cwd: session.cwd || currentCwd,
-          attachments: currentAttachments,
-        },
-      });
-    } else {
-      // Continue session
-      send({
-        type: 'session.continue',
-        payload: {
-          sessionId: activeSessionId,
-          prompt,
-          attachments: currentAttachments,
-        },
-      });
-    }
-  }, [activeSessionId, sessions, send, cwd, setPendingStart, attachments, clearAttachments]);
+      if (session.messages.length === 0) {
+        // First message - start session
+        send({
+          type: 'session.start',
+          payload: {
+            title: prompt.slice(0, 50),
+            prompt,
+            cwd: session.cwd || currentCwd,
+            attachments: currentAttachments,
+          },
+        });
+      } else {
+        // Continue session
+        send({
+          type: 'session.continue',
+          payload: {
+            sessionId: activeSessionId,
+            prompt,
+            attachments: currentAttachments,
+          },
+        });
+      }
+    },
+    [activeSessionId, sessions, send, cwd, setPendingStart, attachments, clearAttachments]
+  );
 
   const handleStopSession = useCallback(() => {
     if (!activeSessionId) return;
@@ -243,7 +262,14 @@ function App() {
   }, [activeSessionId, send]);
 
   const handlePermissionResponse = useCallback(
-    (sessionId: string, toolUseId: string, result: PermissionResult, toolName?: string, input?: unknown, remember?: boolean) => {
+    (
+      sessionId: string,
+      toolUseId: string,
+      result: PermissionResult,
+      toolName?: string,
+      input?: unknown,
+      remember?: boolean
+    ) => {
       send({
         type: 'permission.response',
         payload: {
@@ -253,7 +279,11 @@ function App() {
           toolName,
           input,
           remember,
-          rememberBehavior: remember ? (result.behavior === 'allow' ? 'always_allow' : 'always_deny') : undefined,
+          rememberBehavior: remember
+            ? result.behavior === 'allow'
+              ? 'always_allow'
+              : 'always_deny'
+            : undefined,
         },
       });
     },
@@ -265,21 +295,30 @@ function App() {
   const showWelcome = useMemo(() => {
     if (!activeSession) return true;
     // Filter out system messages
-    const userMessages = activeSession.messages.filter(
-      (m) => (m as any).type !== 'system'
-    );
+    const userMessages = activeSession.messages.filter((m) => m.type !== 'system');
     return userMessages.length === 0;
   }, [activeSession]);
 
   // Preview panel state
   const previewArtifact = useAppStore((s) => s.previewArtifact);
   const setPreviewArtifact = useAppStore((s) => s.setPreviewArtifact);
+  const previewSessionId = previewArtifact?.sessionId ?? activeSessionId;
+  const previewSessionArtifacts = previewSessionId
+    ? (sessions[previewSessionId]?.artifacts ?? [])
+    : [];
+  const previewIndex = previewArtifact
+    ? previewSessionArtifacts.findIndex((a) => a.id === previewArtifact.id)
+    : -1;
+  const hasPrevArtifact = previewIndex > 0;
+  const hasNextArtifact = previewIndex >= 0 && previewIndex < previewSessionArtifacts.length - 1;
 
   return (
     <div className="app">
       <Sidebar
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
+        onSelectSession={handleSelectSession}
+        onOpenArtifacts={handleOpenArtifacts}
         onOpenSettings={handleOpenSettings}
         onOpenSkills={handleOpenSkills}
       />
@@ -299,10 +338,7 @@ function App() {
             ) : (
               <>
                 <ChatPanel onPermissionResponse={handlePermissionResponse} />
-                <ChatInputArea
-                  onSend={handleSendMessage}
-                  onStop={handleStopSession}
-                />
+                <ChatInputArea onSend={handleSendMessage} onStop={handleStopSession} />
               </>
             )}
           </div>
@@ -311,11 +347,31 @@ function App() {
               <ArtifactPreview
                 artifact={previewArtifact}
                 onClose={() => setPreviewArtifact(null)}
+                onPrev={() => {
+                  if (!hasPrevArtifact) return;
+                  const prev = previewSessionArtifacts[previewIndex - 1];
+                  if (prev) setPreviewArtifact(prev);
+                }}
+                onNext={() => {
+                  if (!hasNextArtifact) return;
+                  const next = previewSessionArtifacts[previewIndex + 1];
+                  if (next) setPreviewArtifact(next);
+                }}
+                onOpenList={() => setShowArtifacts(true)}
+                hasPrev={hasPrevArtifact}
+                hasNext={hasNextArtifact}
               />
             </div>
           )}
         </div>
       </main>
+
+      {showArtifacts && (
+        <>
+          <div className="settings-overlay" onClick={() => setShowArtifacts(false)} />
+          <ArtifactsPanel onClose={() => setShowArtifacts(false)} />
+        </>
+      )}
 
       {showSettings && (
         <>

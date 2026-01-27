@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
+
 import './StartSessionModal.css';
 
 interface StartSessionModalProps {
@@ -39,7 +40,9 @@ export function StartSessionModal({ onClose, onStart }: StartSessionModalProps) 
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>New Session</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button className="modal-close" onClick={onClose}>
+            ×
+          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -72,11 +75,7 @@ export function StartSessionModal({ onClose, onStart }: StartSessionModalProps) 
             <button type="button" className="btn-secondary" onClick={onClose}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={!cwd.trim() || !prompt.trim()}
-            >
+            <button type="submit" className="btn-primary" disabled={!cwd.trim() || !prompt.trim()}>
               Start Session
             </button>
           </div>

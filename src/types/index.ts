@@ -11,6 +11,32 @@ export interface Attachment {
   size?: number;
 }
 
+// Artifact types
+export type ArtifactType =
+  | 'html'
+  | 'mermaid'
+  | 'code'
+  | 'image'
+  | 'markdown'
+  | 'csv'
+  | 'json'
+  | 'diff'
+  | 'srt'
+  | 'directory-tree'
+  | 'image-compare';
+
+export interface Artifact {
+  id: string;
+  type: ArtifactType;
+  content: string;
+  createdAt: number;
+  title?: string;
+  language?: string;
+  sessionId?: string;
+  source?: 'auto' | 'sidecar' | 'user' | 'skill-template';
+  meta?: Record<string, unknown>;
+}
+
 export interface SessionInfo {
   id: string;
   title: string;
@@ -23,6 +49,7 @@ export interface SessionInfo {
 export interface SessionView extends SessionInfo {
   messages: StreamMessage[];
   permissionRequests: PermissionRequest[];
+  artifacts: Artifact[];
   hydrated: boolean;
 }
 
@@ -33,9 +60,7 @@ export interface PermissionRequest {
 }
 
 // Message types
-export type StreamMessage =
-  | UserPromptMessage
-  | SDKMessage;
+export type StreamMessage = UserPromptMessage | SDKMessage;
 
 export interface UserPromptMessage {
   type: 'user_prompt';
@@ -107,10 +132,7 @@ export interface StreamEventMessage {
 }
 
 // Content types
-export type MessageContent =
-  | TextContent
-  | ThinkingContent
-  | ToolUseContent;
+export type MessageContent = TextContent | ThinkingContent | ToolUseContent;
 
 export interface TextContent {
   type: 'text';
@@ -139,14 +161,40 @@ export interface ToolResultContent {
 // Event types
 export type ClientEvent =
   | { type: 'session.list' }
-  | { type: 'session.start'; payload: { title: string; prompt: string; cwd?: string; allowedTools?: string; attachments?: Attachment[] } }
-  | { type: 'session.continue'; payload: { sessionId: string; prompt: string; attachments?: Attachment[] } }
+  | {
+      type: 'session.start';
+      payload: {
+        title: string;
+        prompt: string;
+        cwd?: string;
+        allowedTools?: string;
+        attachments?: Attachment[];
+      };
+    }
+  | {
+      type: 'session.continue';
+      payload: { sessionId: string; prompt: string; attachments?: Attachment[] };
+    }
   | { type: 'session.stop'; payload: { sessionId: string } }
   | { type: 'session.delete'; payload: { sessionId: string } }
   | { type: 'session.history'; payload: { sessionId: string } }
-  | { type: 'permission.response'; payload: { sessionId: string; toolUseId: string; result: PermissionResult; toolName?: string; input?: unknown; remember?: boolean; rememberBehavior?: 'always_allow' | 'always_deny' } }
+  | {
+      type: 'permission.response';
+      payload: {
+        sessionId: string;
+        toolUseId: string;
+        result: PermissionResult;
+        toolName?: string;
+        input?: unknown;
+        remember?: boolean;
+        rememberBehavior?: 'always_allow' | 'always_deny';
+      };
+    }
   | { type: 'settings.get' }
-  | { type: 'settings.update'; payload: { permissionMode?: PermissionMode; protectedPaths?: string[] } }
+  | {
+      type: 'settings.update';
+      payload: { permissionMode?: PermissionMode; protectedPaths?: string[] };
+    }
   | { type: 'settings.permission.clear' }
   | { type: 'skills.list'; payload?: { cwd?: string } }
   | { type: 'skills.install'; payload: { url: string } }
@@ -155,20 +203,54 @@ export type ClientEvent =
   | { type: 'skills.expand'; payload: { path: string; values: SkillParameterValues } }
   | { type: 'skills.openReferenceFolder'; payload?: { path?: string } }
   | { type: 'skills.installBundled' }
-  | { type: 'env.check' };
+  | { type: 'env.check' }
+  // Git events
+  | { type: 'git.status'; payload: { cwd: string } }
+  | { type: 'git.diff'; payload: { cwd: string; file?: string } }
+  | { type: 'git.commit'; payload: { cwd: string; message: string } }
+  | { type: 'git.checkout'; payload: { cwd: string; branch: string } }
+  | { type: 'git.branches'; payload: { cwd: string } }
+  | { type: 'git.discard'; payload: { cwd: string; file: string } }
+  // Stream control events
+  | { type: 'stream.stop'; payload: { sessionId: string } }
+  | { type: 'stream.regenerate'; payload: { sessionId: string } };
 
 export type ServerEvent =
   | { type: 'session.list'; payload: { sessions: SessionInfo[] } }
-  | { type: 'session.status'; payload: { sessionId: string; status: SessionStatus; title?: string; cwd?: string } }
-  | { type: 'session.history'; payload: { sessionId: string; messages: StreamMessage[]; status: SessionStatus } }
+  | {
+      type: 'session.status';
+      payload: { sessionId: string; status: SessionStatus; title?: string; cwd?: string };
+    }
+  | {
+      type: 'session.history';
+      payload: { sessionId: string; messages: StreamMessage[]; status: SessionStatus };
+    }
   | { type: 'session.deleted'; payload: { sessionId: string } }
   | { type: 'stream.message'; payload: { sessionId: string; message: SDKMessage } }
   | { type: 'stream.user_prompt'; payload: { sessionId: string; prompt: string } }
-  | { type: 'permission.request'; payload: { sessionId: string; toolUseId: string; toolName: string; input: unknown; isProtectedPath?: boolean } }
-  | { type: 'settings.loaded'; payload: { loaded: boolean; path: string | null; hasApiKey: boolean; model?: string } }
+  | {
+      type: 'permission.request';
+      payload: {
+        sessionId: string;
+        toolUseId: string;
+        toolName: string;
+        input: unknown;
+        isProtectedPath?: boolean;
+      };
+    }
+  | {
+      type: 'settings.loaded';
+      payload: { loaded: boolean; path: string | null; hasApiKey: boolean; model?: string };
+    }
   | { type: 'settings.permission'; payload: PermissionSettings }
   | { type: 'skills.list'; payload: { skills: SkillInfo[] } }
-  | { type: 'runner.error'; payload: { message: string } };
+  | { type: 'artifact.created'; payload: { sessionId: string; artifact: Artifact } }
+  | { type: 'runner.error'; payload: { message: string } }
+  // Git events
+  | { type: 'git.status'; payload: GitStatus }
+  | { type: 'git.diff'; payload: GitDiff }
+  | { type: 'git.branches'; payload: { branches: GitBranch[] } }
+  | { type: 'git.error'; payload: { message: string } };
 
 export interface ClaudeSettings {
   loaded: boolean;
@@ -283,12 +365,56 @@ export interface ExpandedSkill {
   parameterValues: SkillParameterValues;
 }
 
-export const SKILL_CATEGORIES: Record<SkillCategory, { name: string; iconType: string; color: string }> = {
+// Git types
+export interface GitStatus {
+  branch: string | null;
+  ahead: number;
+  behind: number;
+  staged: GitFile[];
+  unstaged: GitFile[];
+  untracked: string[];
+  currentCommit: GitCommit | null;
+}
+
+export interface GitFile {
+  path: string;
+  status: 'modified' | 'added' | 'deleted' | 'renamed';
+}
+
+export interface GitCommit {
+  hash: string;
+  author: string;
+  message: string;
+  date: number;
+}
+
+export interface GitDiff {
+  file: string;
+  hunks: GitHunk[];
+}
+
+export interface GitHunk {
+  oldStart: number;
+  oldLines: number;
+  newStart: number;
+  newLines: number;
+  lines: string[];
+}
+
+export interface GitBranch {
+  name: string;
+  isCurrent: boolean;
+}
+
+export const SKILL_CATEGORIES: Record<
+  SkillCategory,
+  { name: string; iconType: string; color: string }
+> = {
   'file-management': { name: 'Files', iconType: 'folder', color: '#3B82F6' },
   'content-creation': { name: 'Content', iconType: 'pen', color: '#8B5CF6' },
-  'productivity': { name: 'Productivity', iconType: 'zap', color: '#F59E0B' },
-  'learning': { name: 'Learning', iconType: 'book', color: '#10B981' },
-  'lifestyle': { name: 'Lifestyle', iconType: 'home', color: '#EC4899' },
-  'development': { name: 'Development', iconType: 'code', color: '#6366F1' },
-  'other': { name: 'Other', iconType: 'tool', color: '#6B7280' },
+  productivity: { name: 'Productivity', iconType: 'zap', color: '#F59E0B' },
+  learning: { name: 'Learning', iconType: 'book', color: '#10B981' },
+  lifestyle: { name: 'Lifestyle', iconType: 'home', color: '#EC4899' },
+  development: { name: 'Development', iconType: 'code', color: '#6366F1' },
+  other: { name: 'Other', iconType: 'tool', color: '#6B7280' },
 };

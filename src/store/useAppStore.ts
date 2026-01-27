@@ -1,16 +1,20 @@
 import { create } from 'zustand';
-import type { ServerEvent, SessionView, ClaudeSettings, SessionMode, Attachment, PermissionSettings, SkillInfo } from '../types';
+
+import type {
+  Artifact,
+  Attachment,
+  ClaudeSettings,
+  PermissionSettings,
+  ServerEvent,
+  SessionMode,
+  SessionView,
+  SkillInfo,
+} from '../types';
+import { artifactsFromAssistantContent } from '../utils/artifacts';
 
 interface PendingSkill {
   name: string;
   prompt: string;
-}
-
-interface PreviewArtifact {
-  type: 'html' | 'mermaid' | 'code' | 'image' | 'markdown' | 'csv';
-  language?: string;
-  content: string;
-  title?: string;
 }
 
 interface AppState {
@@ -36,7 +40,7 @@ interface AppState {
   attachments: Attachment[];
 
   // Preview state
-  previewArtifact: PreviewArtifact | null;
+  previewArtifact: Artifact | null;
 
   setPrompt: (prompt: string) => void;
   setCwd: (cwd: string) => void;
@@ -59,7 +63,10 @@ interface AppState {
   setPendingSkill: (skill: PendingSkill | null) => void;
 
   // Preview actions
-  setPreviewArtifact: (artifact: PreviewArtifact | null) => void;
+  setPreviewArtifact: (artifact: Artifact | null) => void;
+
+  // Artifact actions
+  addArtifact: (sessionId: string, artifact: Artifact) => void;
 }
 
 function createSession(id: string): SessionView {
@@ -69,6 +76,7 @@ function createSession(id: string): SessionView {
     status: 'idle',
     messages: [],
     permissionRequests: [],
+    artifacts: [],
     hydrated: false,
   };
 }
@@ -119,6 +127,20 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Preview actions
   setPreviewArtifact: (previewArtifact) => set({ previewArtifact }),
+
+  // Artifact actions
+  addArtifact: (sessionId, artifact) => {
+    set((state) => {
+      const existing = state.sessions[sessionId] ?? createSession(sessionId);
+      const artifacts = [...existing.artifacts, artifact];
+      return {
+        sessions: {
+          ...state.sessions,
+          [sessionId]: { ...existing, artifacts },
+        },
+      };
+    });
+  },
 
   markHistoryRequested: (sessionId) => {
     set((state) => {
@@ -189,12 +211,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       case 'session.history': {
         const { sessionId, messages, status } = event.payload;
+        const artifacts = messages.flatMap((m) => {
+          if (m.type !== 'assistant') return [];
+          const content = m.message?.content;
+          if (!content || !Array.isArray(content)) return [];
+          return artifactsFromAssistantContent(sessionId, content);
+        });
         set((state) => {
           const existing = state.sessions[sessionId] ?? createSession(sessionId);
           return {
             sessions: {
               ...state.sessions,
-              [sessionId]: { ...existing, status, messages, hydrated: true },
+              [sessionId]: { ...existing, status, messages, artifacts, hydrated: true },
             },
           };
         });
@@ -249,41 +277,51 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       case 'stream.message': {
         const { sessionId, message } = event.payload;
-        const msgType = (message as any)?.type;
 
         // Handle stream_event messages - merge text deltas into last assistant message
-        if (msgType === 'stream_event') {
-          const streamEvent = message as any;
-          const delta = streamEvent?.event?.delta;
+        if (message.type === 'stream_event') {
+          const delta = message.event?.delta;
 
           // Only process text deltas
-          if (delta?.type === 'text_delta' && delta?.text) {
+          if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
+            const deltaText = delta.text;
+            if (!deltaText) break;
             set((state) => {
               const existing = state.sessions[sessionId] ?? createSession(sessionId);
               const messages = [...existing.messages];
-              const lastMsg = messages[messages.length - 1] as any;
+              const lastMsg = messages[messages.length - 1];
 
               // If last message is assistant (streaming), append to its last text content
-              if (lastMsg?.type === 'assistant' && lastMsg?._streaming && Array.isArray(lastMsg?.message?.content)) {
-                const content = lastMsg.message.content;
+              if (
+                lastMsg?.type === 'assistant' &&
+                lastMsg._streaming &&
+                Array.isArray(lastMsg.message?.content)
+              ) {
+                const content = [...lastMsg.message.content];
                 const lastContent = content[content.length - 1];
 
                 if (lastContent?.type === 'text') {
                   // Append to existing text
-                  lastContent.text = (lastContent.text || '') + delta.text;
+                  content[content.length - 1] = {
+                    ...lastContent,
+                    text: (lastContent.text || '') + delta.text,
+                  };
                 } else {
                   // Add new text block
-                  content.push({ type: 'text', text: delta.text });
+                  content.push({ type: 'text', text: deltaText });
                 }
 
-                messages[messages.length - 1] = { ...lastMsg };
+                messages[messages.length - 1] = {
+                  ...lastMsg,
+                  message: { ...lastMsg.message, content },
+                };
               } else {
                 // Create new streaming assistant message with text
                 messages.push({
                   type: 'assistant',
                   _streaming: true, // Mark as streaming
                   message: {
-                    content: [{ type: 'text', text: delta.text }],
+                    content: [{ type: 'text', text: deltaText }],
                   },
                 });
               }
@@ -301,14 +339,22 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
 
         // For complete assistant messages, replace the streaming message
-        if (msgType === 'assistant') {
+        if (message.type === 'assistant') {
+          const newArtifacts = artifactsFromAssistantContent(
+            sessionId,
+            message.message?.content ?? []
+          );
           set((state) => {
             const existing = state.sessions[sessionId] ?? createSession(sessionId);
             const messages = [...existing.messages];
-            const lastMsg = messages[messages.length - 1] as any;
+            const lastMsg = messages[messages.length - 1];
+            const artifacts =
+              newArtifacts.length > 0
+                ? [...existing.artifacts, ...newArtifacts]
+                : existing.artifacts;
 
             // If last message was streaming, replace it with the complete message
-            if (lastMsg?.type === 'assistant' && lastMsg?._streaming) {
+            if (lastMsg?.type === 'assistant' && lastMsg._streaming) {
               messages[messages.length - 1] = message;
             } else {
               messages.push(message);
@@ -317,7 +363,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             return {
               sessions: {
                 ...state.sessions,
-                [sessionId]: { ...existing, messages },
+                [sessionId]: { ...existing, messages, artifacts },
               },
             };
           });
@@ -400,6 +446,23 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({
           skills: event.payload.skills,
           skillsLoading: false,
+        });
+        break;
+      }
+
+      case 'artifact.created': {
+        const { sessionId, artifact } = event.payload;
+        set((state) => {
+          const existing = state.sessions[sessionId] ?? createSession(sessionId);
+          return {
+            sessions: {
+              ...state.sessions,
+              [sessionId]: {
+                ...existing,
+                artifacts: [...existing.artifacts, { ...artifact, sessionId }],
+              },
+            },
+          };
         });
         break;
       }

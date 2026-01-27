@@ -1,28 +1,43 @@
-import { useState, useMemo } from 'react';
-import { X, Code, Eye, Copy, Check } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Check, ChevronLeft, ChevronRight, Code, Copy, Eye, List, X } from 'lucide-react';
+
 import { CodePreview } from './CodePreview';
-import { HtmlPreview } from './HtmlPreview';
-import { MermaidPreview } from './MermaidPreview';
-import { ImagePreview } from './ImagePreview';
-import { MarkdownPreview } from './MarkdownPreview';
 import { CsvPreview } from './CsvPreview';
+import { DiffPreview } from './DiffPreview';
+import { DirectoryTreePreview } from './DirectoryTreePreview';
+import { HtmlPreview } from './HtmlPreview';
+import { ImageComparePreview } from './ImageComparePreview';
+import { ImagePreview } from './ImagePreview';
+import { JsonPreview } from './JsonPreview';
+import { MarkdownPreview } from './MarkdownPreview';
+import { MermaidPreview } from './MermaidPreview';
+import { SrtPreview } from './SrtPreview';
+
 import './ArtifactPreview.css';
 
-export type ArtifactType = 'html' | 'mermaid' | 'code' | 'image' | 'markdown' | 'csv';
+import type { Artifact, ArtifactType } from '../../types';
 
-export interface Artifact {
-  type: ArtifactType;
-  language?: string;
-  content: string;
-  title?: string;
-}
+export type { Artifact, ArtifactType };
 
 interface ArtifactPreviewProps {
   artifact: Artifact;
   onClose: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+  onOpenList?: () => void;
+  hasPrev?: boolean;
+  hasNext?: boolean;
 }
 
-export function ArtifactPreview({ artifact, onClose }: ArtifactPreviewProps) {
+export function ArtifactPreview({
+  artifact,
+  onClose,
+  onPrev,
+  onNext,
+  onOpenList,
+  hasPrev = false,
+  hasNext = false,
+}: ArtifactPreviewProps) {
   const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview');
   const [copied, setCopied] = useState(false);
 
@@ -33,6 +48,16 @@ export function ArtifactPreview({ artifact, onClose }: ArtifactPreviewProps) {
         return 'HTML Preview';
       case 'mermaid':
         return 'Mermaid Diagram';
+      case 'json':
+        return 'JSON';
+      case 'diff':
+        return 'Diff';
+      case 'srt':
+        return 'Subtitles';
+      case 'directory-tree':
+        return 'Directory Tree';
+      case 'image-compare':
+        return 'Image Compare';
       default:
         return artifact.language ? `${artifact.language} Code` : 'Code';
     }
@@ -49,7 +74,18 @@ export function ArtifactPreview({ artifact, onClose }: ArtifactPreviewProps) {
     }
   };
 
-  const canPreview = ['html', 'mermaid', 'image', 'markdown', 'csv'].includes(artifact.type);
+  const canPreview = [
+    'html',
+    'mermaid',
+    'image',
+    'markdown',
+    'csv',
+    'json',
+    'diff',
+    'srt',
+    'directory-tree',
+    'image-compare',
+  ].includes(artifact.type);
 
   // Check if code view is available (not for images)
   const hasCodeView = !!artifact.content && artifact.type !== 'image';
@@ -60,16 +96,35 @@ export function ArtifactPreview({ artifact, onClose }: ArtifactPreviewProps) {
       <div className="artifact-header">
         <div className="artifact-title-area">
           <span className="artifact-title">{title}</span>
-          <span className="artifact-type-badge">
-            {artifact.language || artifact.type}
-          </span>
+          <span className="artifact-type-badge">{artifact.language || artifact.type}</span>
         </div>
         <div className="artifact-actions">
-          <button
-            className="header-action-btn"
-            onClick={onClose}
-            title="Close preview"
-          >
+          {onPrev && (
+            <button
+              className="header-action-btn"
+              onClick={onPrev}
+              disabled={!hasPrev}
+              title="Previous artifact"
+            >
+              <ChevronLeft size={16} />
+            </button>
+          )}
+          {onNext && (
+            <button
+              className="header-action-btn"
+              onClick={onNext}
+              disabled={!hasNext}
+              title="Next artifact"
+            >
+              <ChevronRight size={16} />
+            </button>
+          )}
+          {onOpenList && (
+            <button className="header-action-btn" onClick={onOpenList} title="All artifacts">
+              <List size={16} />
+            </button>
+          )}
+          <button className="header-action-btn" onClick={onClose} title="Close preview">
             <X size={16} />
           </button>
         </div>
@@ -136,6 +191,16 @@ export function ArtifactPreview({ artifact, onClose }: ArtifactPreviewProps) {
           <MarkdownPreview content={artifact.content} />
         ) : artifact.type === 'csv' ? (
           <CsvPreview content={artifact.content} />
+        ) : artifact.type === 'json' ? (
+          <JsonPreview content={artifact.content} />
+        ) : artifact.type === 'diff' ? (
+          <DiffPreview content={artifact.content} />
+        ) : artifact.type === 'srt' ? (
+          <SrtPreview content={artifact.content} />
+        ) : artifact.type === 'directory-tree' ? (
+          <DirectoryTreePreview content={artifact.content} />
+        ) : artifact.type === 'image-compare' ? (
+          <ImageComparePreview content={artifact.content} />
         ) : (
           <CodePreview code={artifact.content} language={artifact.language} />
         )}

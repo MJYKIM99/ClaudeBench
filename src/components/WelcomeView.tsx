@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
 import { ChatInputArea, ChatInputAreaRef } from './chat-input';
 import { SkillShortcuts } from './SkillShortcuts';
+
 import './WelcomeView.css';
 
 interface WelcomeViewProps {
@@ -9,11 +11,11 @@ interface WelcomeViewProps {
 }
 
 const TYPING_PROMPTS = [
-  "Build a REST API with authentication",
-  "Organize my messy Downloads folder",
-  "Convert images to WebP and compress them",
-  "Create a landing page for my startup",
-  "Research the latest AI trends for me",
+  'Build a REST API with authentication',
+  'Organize my messy Downloads folder',
+  'Convert images to WebP and compress them',
+  'Create a landing page for my startup',
+  'Research the latest AI trends for me',
 ];
 
 export function WelcomeView({ onSend, onStop }: WelcomeViewProps) {
@@ -26,35 +28,37 @@ export function WelcomeView({ onSend, onStop }: WelcomeViewProps) {
   useEffect(() => {
     const currentPrompt = TYPING_PROMPTS[promptIndex];
 
-    if (isPaused) {
-      const pauseTimer = setTimeout(() => {
+    let delay = 80;
+    if (isPaused) delay = 2000;
+    else if (isDeleting) delay = displayText === '' ? 0 : 30;
+    else if (displayText === currentPrompt) delay = 0;
+
+    const timer = setTimeout(() => {
+      if (isPaused) {
         setIsPaused(false);
         setIsDeleting(true);
-      }, 2000);
-      return () => clearTimeout(pauseTimer);
-    }
-
-    if (isDeleting) {
-      if (displayText === '') {
-        setIsDeleting(false);
-        setPromptIndex((prev) => (prev + 1) % TYPING_PROMPTS.length);
         return;
       }
-      const deleteTimer = setTimeout(() => {
+
+      if (isDeleting) {
+        if (displayText === '') {
+          setIsDeleting(false);
+          setPromptIndex((prev) => (prev + 1) % TYPING_PROMPTS.length);
+          return;
+        }
         setDisplayText((prev) => prev.slice(0, -1));
-      }, 30);
-      return () => clearTimeout(deleteTimer);
-    }
+        return;
+      }
 
-    if (displayText === currentPrompt) {
-      setIsPaused(true);
-      return;
-    }
+      if (displayText === currentPrompt) {
+        setIsPaused(true);
+        return;
+      }
 
-    const typeTimer = setTimeout(() => {
       setDisplayText(currentPrompt.slice(0, displayText.length + 1));
-    }, 80);
-    return () => clearTimeout(typeTimer);
+    }, delay);
+
+    return () => clearTimeout(timer);
   }, [displayText, isDeleting, isPaused, promptIndex]);
 
   return (
@@ -68,7 +72,12 @@ export function WelcomeView({ onSend, onStop }: WelcomeViewProps) {
           </div>
         </div>
         <div className="welcome-input-wrapper">
-          <ChatInputArea ref={chatInputRef} onSend={onSend} onStop={onStop} showRepoSelector={true} />
+          <ChatInputArea
+            ref={chatInputRef}
+            onSend={onSend}
+            onStop={onStop}
+            showRepoSelector={true}
+          />
           <SkillShortcuts />
         </div>
       </div>

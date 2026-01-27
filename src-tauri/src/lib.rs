@@ -4,6 +4,54 @@ use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 
+// Git types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitStatus {
+    pub branch: Option<String>,
+    pub ahead: u32,
+    pub behind: u32,
+    pub staged: Vec<GitFile>,
+    pub unstaged: Vec<GitFile>,
+    pub untracked: Vec<String>,
+    pub current_commit: Option<GitCommit>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitFile {
+    pub path: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitCommit {
+    pub hash: String,
+    pub author: String,
+    pub message: String,
+    pub date: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitDiff {
+    pub file: String,
+    pub hunks: Vec<GitHunk>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitHunk {
+    pub old_start: u32,
+    pub old_lines: u32,
+    pub new_start: u32,
+    pub new_lines: u32,
+    pub lines: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitBranch {
+    pub name: String,
+    #[serde(rename = "isCurrent")]
+    pub is_current: bool,
+}
+
 // ========== Node Detection ==========
 
 #[derive(Debug, Clone, Serialize)]
